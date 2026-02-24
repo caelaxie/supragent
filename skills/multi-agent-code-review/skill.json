@@ -1,14 +1,14 @@
 {
   "name": "multi-agent-code-review",
-  "version": "1.0.0",
-  "description": "Comprehensive code review using 6 specialized agents working in parallel: Lead Architect, Security Expert, Performance Engineer, Maintainability Guru, Edge-Case Specialist, and Junior Dev Simulator",
+  "version": "1.1.0",
+  "description": "Robust, language-agnostic multi-agent code review system. Deploys 6 specialized agents (Lead Architect, Security Expert, Performance Engineer, Maintainability Guru, Edge-Case Specialist, Junior Dev Simulator) working in parallel to analyze code changes from different perspectives, then builds consensus with intelligent deduplication.",
   "entry_point": "main.py",
   "author": "supragent",
-  "tags": ["code-review", "multi-agent", "security", "performance", "codex", "opencode"],
+  "tags": ["code-review", "multi-agent", "security", "performance", "maintainability", "language-agnostic"],
   "dependencies": [],
   "agents": [
     "lead-architect",
-    "security-expert",
+    "security-expert", 
     "performance-engineer",
     "maintainability-guru",
     "edge-case-specialist",
@@ -16,15 +16,67 @@
   ],
   "compatibility": {
     "codex": true,
-    "opencode": true
+    "opencode": true,
+    "claude-code": true,
+    "aider": true,
+    "cursor": true
+  },
+  "features": {
+    "language_agnostic": true,
+    "framework_agnostic": true,
+    "parallel_execution": true,
+    "consensus_building": true,
+    "intelligent_deduplication": true,
+    "severity_ranking": true,
+    "code_suggestions": true
   },
   "input": {
     "type": "code_changes",
-    "description": "Diffs, PR description, or codebase section to review"
+    "formats": ["git_diff", "patch", "plain_text"],
+    "description": "Diffs, patches, or plain text code to review"
   },
   "output": {
     "type": "consensus_report",
-    "format": "markdown",
-    "includes": ["findings", "severity_ranking", "code_suggestions", "consensus"]
-  }
+    "formats": ["markdown", "json"],
+    "includes": [
+      "executive_summary",
+      "severity_ranking", 
+      "consensus_findings",
+      "per_agent_findings",
+      "code_suggestions",
+      "review_statistics"
+    ]
+  },
+  "supported_languages": [
+    "any",
+    "javascript",
+    "typescript", 
+    "python",
+    "java",
+    "go",
+    "rust",
+    "c",
+    "cpp",
+    "csharp",
+    "ruby",
+    "php",
+    "swift",
+    "kotlin",
+    "scala",
+    "elixir",
+    "erlang",
+    "haskell",
+    "clojure",
+    "lua",
+    "perl",
+    "r",
+    "matlab",
+    "shell",
+    "sql",
+    "html",
+    "css",
+    "yaml",
+    "json",
+    "xml"
+  ]
 }

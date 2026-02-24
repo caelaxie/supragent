@@ -1,359 +1,522 @@
 """
 Consensus Builder Module
-Aggregates findings from multiple agents and builds consensus.
+Aggregates findings from multiple agents with intelligent deduplication.
+
+This module is language/framework agnostic and uses fuzzy matching
+and fingerprinting to identify duplicate findings across agents.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple, Set
 from collections import defaultdict
 from difflib import SequenceMatcher
+import hashlib
+import re
 
 
-class FindingAggregator:
-    """Aggregates and deduplicates findings from multiple agents."""
+class FingerprintGenerator:
+    """Generates fingerprints for findings to enable deduplication."""
 
-    def __init__(self, similarity_threshold: float = 0.8):
-        self.similarity_threshold = similarity_threshold
+    @staticmethod
+    def normalize_text(text: str) -> str:
+        """Normalize text for comparison."""
+        # Convert to lowercase
+        text = text.lower()
+        # Remove extra whitespace
+        text = re.sub(r"\s+", " ", text)
+        # Remove punctuation
+        text = re.sub(r"[^\w\s]", "", text)
+        return text.strip()
 
-    def aggregate(self, findings: List[Dict]) -> List[Dict]:
+    @staticmethod
+    def generate_finding_fingerprint(finding: Dict[str, Any]) -> str:
         """
-        Aggregate findings, grouping similar issues together.
+        Generate a fingerprint for a finding.
 
-        Args:
-            findings: List of finding dictionaries from all agents
-
-        Returns:
-            List of aggregated findings with agreement counts
+        Combines location, category, and normalized description.
         """
-        if not findings:
-            return []
+        location = finding.get("location", "")
+        category = finding.get("category", "")
+        description = finding.get("description", "")
 
-        # Group by severity first
-        by_severity = defaultdict(list)
-        for finding in findings:
-            severity = finding.get("severity", "low")
-            by_severity[severity].append(finding)
+        # Normalize description (first 150 chars)
+        normalized_desc = FingerprintGenerator.normalize_text(description)[:150]
 
-        # Aggregate within each severity level
-        aggregated = []
-        for severity in ["critical", "high", "medium", "low"]:
-            severity_findings = by_severity.get(severity, [])
-            if severity_findings:
-                aggregated.extend(self._aggregate_group(severity_findings))
+        # Create composite string
+        content = f"{location}:{category}:{normalized_desc}"
 
-        return aggregated
+        # Generate hash
+        return hashlib.md5(content.encode()).hexdigest()[:16]
 
-    def _aggregate_group(self, findings: List[Dict]) -> List[Dict]:
-        """Aggregate a group of findings using similarity matching."""
-        groups = []
+    @staticmethod
+    def calculate_similarity(
+        finding1: Dict[str, Any], finding2: Dict[str, Any]
+    ) -> float:
+        """
+        Calculate similarity between two findings (0.0 to 1.0).
 
-        for finding in findings:
-            matched = False
-            for group in groups:
-                if self._is_similar(finding, group[0]):
-                    group.append(finding)
-                    matched = True
-                    break
+        Uses multiple signals:
+        - Location matching
+        - Category matching
+        - Description text similarity
+        """
+        scores = []
 
-            if not matched:
-                groups.append([finding])
-
-        # Convert groups to aggregated findings
-        aggregated = []
-        for group in groups:
-            if len(group) == 1:
-                # Single finding, add as-is
-                aggregated.append(group[0])
-            else:
-                # Multiple similar findings - create consensus
-                consensus = self._create_consensus_finding(group)
-                aggregated.append(consensus)
-
-        return aggregated
-
-    def _is_similar(self, finding1: Dict, finding2: Dict) -> bool:
-        """Check if two findings are similar enough to be the same issue."""
-        # Check location similarity
+        # Location similarity (30% weight)
         loc1 = finding1.get("location", "")
         loc2 = finding2.get("location", "")
-
         if loc1 and loc2:
-            # Same file/function is strong indicator
-            if self._location_match(loc1, loc2):
-                # Check description similarity
-                desc1 = finding1.get("description", "")
-                desc2 = finding2.get("description", "")
-                similarity = self._text_similarity(desc1, desc2)
-                return similarity >= self.similarity_threshold
+            loc_sim = FingerprintGenerator._location_similarity(loc1, loc2)
+            scores.append((loc_sim, 0.30))
 
-        return False
+        # Category match (20% weight)
+        cat1 = finding1.get("category", "")
+        cat2 = finding2.get("category", "")
+        if cat1 and cat2:
+            cat_match = 1.0 if cat1 == cat2 else 0.0
+            scores.append((cat_match, 0.20))
 
-    def _location_match(self, loc1: str, loc2: str) -> bool:
-        """Check if two locations match."""
-        # Extract file path and line/function
-        parts1 = loc1.split(":")
-        parts2 = loc2.split(":")
+        # Description similarity (40% weight)
+        desc1 = finding1.get("description", "")
+        desc2 = finding2.get("description", "")
+        if desc1 and desc2:
+            desc_sim = FingerprintGenerator._text_similarity(desc1, desc2)
+            scores.append((desc_sim, 0.40))
 
-        if parts1 and parts2:
-            file1 = parts1[0]
-            file2 = parts2[0]
-            return file1 == file2
+        # Severity match (10% weight)
+        sev1 = finding1.get("severity", "")
+        sev2 = finding2.get("severity", "")
+        if sev1 and sev2:
+            sev_match = 1.0 if sev1 == sev2 else 0.0
+            scores.append((sev_match, 0.10))
 
-        return loc1 == loc2
+        # Calculate weighted average
+        if not scores:
+            return 0.0
 
-    def _text_similarity(self, text1: str, text2: str) -> float:
-        """Calculate text similarity ratio."""
+        total_weight = sum(weight for _, weight in scores)
+        weighted_sum = sum(score * weight for score, weight in scores)
+
+        return weighted_sum / total_weight if total_weight > 0 else 0.0
+
+    @staticmethod
+    def _location_similarity(loc1: str, loc2: str) -> float:
+        """Calculate similarity between two location strings."""
+        # Split by colon to get file path
+        file1 = loc1.split(":")[0] if ":" in loc1 else loc1
+        file2 = loc2.split(":")[0] if ":" in loc2 else loc2
+
+        # If files match, high similarity
+        if file1 == file2:
+            # Check if line numbers overlap
+            lines1 = FingerprintGenerator._extract_line_numbers(loc1)
+            lines2 = FingerprintGenerator._extract_line_numbers(loc2)
+
+            if lines1 and lines2:
+                # Calculate overlap
+                overlap = len(set(lines1) & set(lines2))
+                if overlap > 0:
+                    return 1.0  # Same file and overlapping lines
+
+            return 0.8  # Same file, no line overlap
+
+        # Different files - check for similar names
+        return FingerprintGenerator._text_similarity(file1, file2)
+
+    @staticmethod
+    def _extract_line_numbers(location: str) -> List[int]:
+        """Extract line numbers from location string."""
+        numbers = []
+        # Match patterns like "file.py:45", "file.py:45-67", "file.py:45:67"
+        matches = re.findall(r":(\d+)(?:[-:]?(\d+))?", location)
+        for start, end in matches:
+            start_num = int(start)
+            end_num = int(end) if end else start_num
+            numbers.extend(range(start_num, end_num + 1))
+        return numbers
+
+    @staticmethod
+    def _text_similarity(text1: str, text2: str) -> float:
+        """Calculate text similarity using SequenceMatcher."""
         if not text1 or not text2:
             return 0.0
 
-        return SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
+        # Normalize
+        t1 = FingerprintGenerator.normalize_text(text1)
+        t2 = FingerprintGenerator.normalize_text(text2)
 
-    def _create_consensus_finding(self, group: List[Dict]) -> Dict:
-        """Create a consensus finding from a group of similar findings."""
-        # Use the most severe/highest priority finding as base
-        base = group[0]
-
-        # Collect all agents that found this
-        agents = list(set(f.get("agent", "unknown") for f in group))
-
-        # Merge recommendations (unique ones)
-        recommendations = list(
-            set(f.get("recommendation", "") for f in group if f.get("recommendation"))
-        )
-
-        # Create consensus finding
-        consensus = {
-            "severity": base.get("severity", "low"),
-            "category": base.get("category", "unknown"),
-            "location": base.get("location", ""),
-            "description": base.get("description", ""),
-            "recommendation": recommendations[0] if recommendations else "",
-            "alternative_recommendations": recommendations[1:]
-            if len(recommendations) > 1
-            else [],
-            "agents": agents,
-            "agreement_count": len(group),
-            "is_consensus": True,
-            "original_findings": group,
-        }
-
-        # Add code suggestion if any finding has one
-        for f in group:
-            if f.get("code_suggestion"):
-                consensus["code_suggestion"] = f["code_suggestion"]
-                break
-
-        return consensus
+        return SequenceMatcher(None, t1, t2).ratio()
 
 
-class ConsensusReporter:
-    """Generates the final consensus report."""
+class ConsensusBuilder:
+    """
+    Builds consensus from multiple agent findings.
 
-    def __init__(self, config: Optional[Dict] = None):
+    Performs intelligent deduplication and identifies high-confidence
+    issues found by multiple agents.
+    """
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or {}
-        self.aggregator = FindingAggregator(
-            similarity_threshold=self.config.get("similarity_threshold", 0.8)
-        )
+        self.fingerprinter = FingerprintGenerator()
+        self.similarity_threshold = self.config.get("similarity_threshold", 0.75)
+        self.min_agreement = self.config.get("min_agreement", 2)
 
-    def build_report(
-        self, agent_reports: List[Dict], code_diff: str, metadata: Optional[Dict] = None
-    ) -> Dict[str, Any]:
+    def build_consensus(
+        self, findings: List[Any]
+    ) -> Tuple[List[Dict[str, Any]], List[Any]]:
         """
-        Build the final consensus report from all agent reports.
+        Build consensus from findings.
 
         Args:
-            agent_reports: List of report dictionaries from each agent
-            code_diff: The original code diff being reviewed
-            metadata: Optional additional metadata
+            findings: List of Finding objects or dictionaries
 
         Returns:
-            Comprehensive consensus report
+            Tuple of (consensus_items, deduplicated_findings)
+            - consensus_items: List of dicts with is_consensus=True
+            - deduplicated_findings: List of Finding objects (merged duplicates)
         """
-        # Extract all findings
-        all_findings = []
-        for report in agent_reports:
-            findings = report.get("findings", [])
-            for finding in findings:
-                finding["agent"] = report.get("agent_name", "unknown")
-                all_findings.append(finding)
+        # Convert to dicts if needed
+        finding_dicts = []
+        for f in findings:
+            if hasattr(f, "to_dict"):
+                finding_dicts.append(f.to_dict())
+            elif isinstance(f, dict):
+                finding_dicts.append(f)
 
-        # Aggregate findings
-        aggregated = self.aggregator.aggregate(all_findings)
+        if not finding_dicts:
+            return [], []
 
-        # Separate consensus items
-        consensus_items = [f for f in aggregated if f.get("is_consensus")]
-        individual_items = [f for f in aggregated if not f.get("is_consensus")]
+        # Group similar findings
+        groups = self._group_similar_findings(finding_dicts)
+
+        # Create consensus items and deduplicated findings
+        consensus_items = []
+        deduplicated = []
+
+        for group in groups:
+            if len(group) == 1:
+                # Single finding - just add it
+                deduplicated.append(self._create_finding_from_dict(group[0]))
+            else:
+                # Multiple similar findings - merge them
+                merged = self._merge_findings(group)
+                deduplicated.append(merged)
+
+                # If meets consensus threshold, create consensus item
+                if len(group) >= self.min_agreement:
+                    consensus_item = self._create_consensus_item(group, merged)
+                    consensus_items.append(consensus_item)
 
         # Sort by severity
         severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
         consensus_items.sort(
             key=lambda x: severity_order.get(x.get("severity", "low"), 4)
         )
-        individual_items.sort(
-            key=lambda x: severity_order.get(x.get("severity", "low"), 4)
+
+        return consensus_items, deduplicated
+
+    def _group_similar_findings(
+        self, findings: List[Dict[str, Any]]
+    ) -> List[List[Dict]]:
+        """
+        Group similar findings together.
+
+        Uses a two-phase approach:
+        1. Quick fingerprint matching for exact duplicates
+        2. Fuzzy similarity matching for near-duplicates
+        """
+        # Phase 1: Group by fingerprint
+        fingerprint_groups = defaultdict(list)
+        for finding in findings:
+            fp = self.fingerprinter.generate_finding_fingerprint(finding)
+            fingerprint_groups[fp].append(finding)
+
+        # Phase 2: Merge groups based on fuzzy similarity
+        merged_groups = []
+        processed_fingerprints = set()
+
+        fps = list(fingerprint_groups.keys())
+        for i, fp1 in enumerate(fps):
+            if fp1 in processed_fingerprints:
+                continue
+
+            group = fingerprint_groups[fp1].copy()
+            processed_fingerprints.add(fp1)
+
+            # Check against remaining groups
+            for fp2 in fps[i + 1 :]:
+                if fp2 in processed_fingerprints:
+                    continue
+
+                # Check if any finding in group1 is similar to any in group2
+                if self._groups_similar(group, fingerprint_groups[fp2]):
+                    group.extend(fingerprint_groups[fp2])
+                    processed_fingerprints.add(fp2)
+
+            merged_groups.append(group)
+
+        return merged_groups
+
+    def _groups_similar(self, group1: List[Dict], group2: List[Dict]) -> bool:
+        """Check if two groups contain similar findings."""
+        # Compare representative findings from each group
+        # (first finding from each group)
+        rep1 = group1[0]
+        rep2 = group2[0]
+
+        similarity = self.fingerprinter.calculate_similarity(rep1, rep2)
+        return similarity >= self.similarity_threshold
+
+    def _merge_findings(self, group: List[Dict]) -> Any:
+        """
+        Merge multiple similar findings into one.
+
+        Takes the best attributes from all findings.
+        """
+        from main import Finding  # Import here to avoid circular dependency
+
+        # Collect all agents
+        agents = list(set(f.get("agent", "unknown") for f in group))
+
+        # Use highest severity
+        severity_priority = {"critical": 3, "high": 2, "medium": 1, "low": 0}
+        base = max(
+            group, key=lambda f: severity_priority.get(f.get("severity", "low"), 0)
         )
 
-        # Count by severity
-        counts = self._count_by_severity(aggregated)
+        # Collect unique recommendations
+        recommendations = list(
+            set(f.get("recommendation", "") for f in group if f.get("recommendation"))
+        )
 
-        # Generate summary
-        summary = self._generate_summary(counts, consensus_items, individual_items)
+        # Collect unique code suggestions
+        code_suggestions = list(
+            set(f.get("code_suggestion", "") for f in group if f.get("code_suggestion"))
+        )
+
+        # Use best description (longest, most detailed)
+        best_description = max(group, key=lambda f: len(f.get("description", ""))).get(
+            "description", ""
+        )
+
+        # Calculate aggregate confidence
+        avg_confidence = sum(f.get("confidence", 80) for f in group) / len(group)
+
+        # Create merged finding
+        return Finding(
+            severity=base.get("severity", "low"),
+            category=base.get("category", "general"),
+            location=base.get("location", "unknown"),
+            description=best_description,
+            recommendation=recommendations[0] if recommendations else "",
+            code_suggestion=code_suggestions[0] if code_suggestions else None,
+            agent=f"consensus({len(agents)} agents)",
+            confidence=int(avg_confidence),
+            metadata={
+                "merged_from": len(group),
+                "contributing_agents": agents,
+                "alternative_recommendations": recommendations[1:]
+                if len(recommendations) > 1
+                else [],
+                "alternative_suggestions": code_suggestions[1:]
+                if len(code_suggestions) > 1
+                else [],
+                "is_consensus": len(group) >= self.min_agreement,
+            },
+        )
+
+    def _create_consensus_item(
+        self, group: List[Dict], merged_finding: Any
+    ) -> Dict[str, Any]:
+        """Create a consensus item from a group of similar findings."""
+        agents = list(set(f.get("agent", "unknown") for f in group))
 
         return {
-            "summary": summary,
-            "severity_counts": counts,
-            "consensus_items": consensus_items,
-            "individual_findings": individual_items,
-            "all_findings": aggregated,
-            "agent_count": len(agent_reports),
-            "metadata": metadata or {},
-            "code_diff_size": len(code_diff),
+            "severity": merged_finding.severity,
+            "category": merged_finding.category,
+            "location": merged_finding.location,
+            "description": merged_finding.description,
+            "recommendation": merged_finding.recommendation,
+            "code_suggestion": merged_finding.code_suggestion,
+            "agents": agents,
+            "agreement_count": len(group),
+            "confidence": merged_finding.confidence,
+            "is_consensus": True,
+            "findings_count": len(group),
         }
 
-    def _count_by_severity(self, findings: List[Dict]) -> Dict[str, int]:
-        """Count findings by severity level."""
-        counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
-        for finding in findings:
-            severity = finding.get("severity", "low")
-            if severity in counts:
-                counts[severity] += 1
-        return counts
+    def _create_finding_from_dict(self, finding_dict: Dict[str, Any]) -> Any:
+        """Create a Finding object from a dictionary."""
+        from main import Finding
 
-    def _generate_summary(
-        self, counts: Dict[str, int], consensus: List[Dict], individual: List[Dict]
-    ) -> str:
-        """Generate executive summary."""
-        total = sum(counts.values())
+        return Finding(
+            severity=finding_dict.get("severity", "low"),
+            category=finding_dict.get("category", "general"),
+            location=finding_dict.get("location", "unknown"),
+            description=finding_dict.get("description", ""),
+            recommendation=finding_dict.get("recommendation", ""),
+            code_suggestion=finding_dict.get("code_suggestion"),
+            agent=finding_dict.get("agent", "unknown"),
+            confidence=finding_dict.get("confidence", 80),
+            metadata=finding_dict.get("metadata", {}),
+        )
 
-        lines = [
-            f"**Total Findings:** {total}",
-            f"",
-            f"**By Severity:**",
-            f"- Critical: {counts['critical']} ⚠️",
-            f"- High: {counts['high']}",
-            f"- Medium: {counts['medium']}",
-            f"- Low: {counts['low']}",
-            f"",
-            f"**Consensus Items:** {len(consensus)} (issues confirmed by multiple agents)",
-            f"**Individual Findings:** {len(individual)}",
-            f"",
-        ]
 
-        # Action items
-        if counts["critical"] > 0:
-            lines.append(
-                f"🚨 **Immediate Action Required:** {counts['critical']} critical issues need to be fixed before merge."
-            )
-        elif counts["high"] > 0:
-            lines.append(
-                f"⚠️ **Action Required:** {counts['high']} high priority issues should be addressed."
-            )
-        elif counts["medium"] > 0:
-            lines.append(
-                f"✅ **Review Recommended:** {counts['medium']} medium priority items to consider."
-            )
-        else:
-            lines.append(
-                f"✅ **Looks Good:** No critical issues found. Minor suggestions only."
-            )
+class ReportGenerator:
+    """
+    Generates formatted reports from consensus data.
 
-        if consensus:
-            lines.append(f"")
-            lines.append(f"**High Confidence Issues** (agreed by multiple agents):")
-            for item in consensus[:5]:  # Top 5
-                sev = item.get("severity", "unknown").upper()
-                desc = item.get("description", "")[:80]
-                agents = item.get("agreement_count", 0)
-                lines.append(f"- [{sev}] {desc}... ({agents} agents)")
+    Produces both markdown and structured output formats.
+    """
 
-        return "\n".join(lines)
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        self.config = config or {}
 
-    def to_markdown(self, report: Dict[str, Any]) -> str:
-        """Convert report to markdown format."""
+    def generate(self, report: Any) -> str:
+        """
+        Generate markdown report.
+
+        Args:
+            report: ConsensusReport object
+
+        Returns:
+            Markdown formatted string
+        """
         lines = []
 
         # Header
         lines.append("# Multi-Agent Code Review Report")
         lines.append("")
 
-        # Summary
+        # Metadata
+        if hasattr(report, "generated_at"):
+            lines.append(f"*Generated: {report.generated_at}*")
+            lines.append("")
+
+        # Executive Summary
         lines.append("## Executive Summary")
-        lines.append(report["summary"])
+        lines.append(report.summary)
         lines.append("")
 
+        # Get findings by severity
+        severity_findings = self._group_by_severity(report.findings)
+
         # Critical Issues
-        if report["severity_counts"]["critical"] > 0:
-            critical = [
-                f for f in report["all_findings"] if f.get("severity") == "critical"
-            ]
-            lines.append(f"## Critical Issues ({len(critical)}) 🚨")
+        if severity_findings["critical"]:
+            lines.append(
+                f"## 🚨 Critical Issues ({len(severity_findings['critical'])})"
+            )
             lines.append("")
-            for i, finding in enumerate(critical, 1):
+            lines.append(
+                "These issues require immediate attention and must be fixed before merge."
+            )
+            lines.append("")
+            for i, finding in enumerate(severity_findings["critical"], 1):
                 lines.extend(self._format_finding(finding, i))
             lines.append("")
 
         # High Issues
-        if report["severity_counts"]["high"] > 0:
-            high = [f for f in report["all_findings"] if f.get("severity") == "high"]
-            lines.append(f"## High Priority Issues ({len(high)}) ⚠️")
+        if severity_findings["high"]:
+            lines.append(
+                f"## ⚠️ High Priority Issues ({len(severity_findings['high'])})"
+            )
             lines.append("")
-            for i, finding in enumerate(high, 1):
+            lines.append("These issues should be addressed before merge.")
+            lines.append("")
+            for i, finding in enumerate(severity_findings["high"], 1):
                 lines.extend(self._format_finding(finding, i))
             lines.append("")
 
         # Consensus Items
-        if report["consensus_items"]:
-            lines.append(f"## Consensus Findings ({len(report['consensus_items'])})")
-            lines.append("Issues agreed upon by multiple agents (high confidence):")
+        if report.consensus_items:
+            lines.append(f"## ✅ Consensus Findings ({len(report.consensus_items)})")
             lines.append("")
-            for item in report["consensus_items"]:
+            lines.append(
+                "These issues were identified by multiple agents and have high confidence:"
+            )
+            lines.append("")
+            for item in report.consensus_items:
                 lines.extend(self._format_consensus_item(item))
             lines.append("")
 
         # Medium Issues
-        if report["severity_counts"]["medium"] > 0:
-            medium = [
-                f for f in report["all_findings"] if f.get("severity") == "medium"
-            ]
-            lines.append(f"## Medium Priority Issues ({len(medium)})")
+        if severity_findings["medium"]:
+            count = len(severity_findings["medium"])
+            show_count = min(count, 10)
+            lines.append(f"## ℹ️ Medium Priority Issues ({count})")
             lines.append("")
-            for i, finding in enumerate(medium[:10], 1):  # Limit to first 10
+            for i, finding in enumerate(severity_findings["medium"][:show_count], 1):
                 lines.extend(self._format_finding(finding, i))
-            if len(medium) > 10:
-                lines.append(f"*... and {len(medium) - 10} more*")
+            if count > show_count:
+                lines.append(f"*... and {count - show_count} more*")
             lines.append("")
 
         # Low Issues
-        if report["severity_counts"]["low"] > 0:
-            low = [f for f in report["all_findings"] if f.get("severity") == "low"]
-            lines.append(f"## Low Priority Suggestions ({len(low)})")
+        if severity_findings["low"]:
+            count = len(severity_findings["low"])
+            show_count = min(count, 5)
+            lines.append(f"## 💡 Suggestions ({count})")
             lines.append("")
-            for i, finding in enumerate(low[:5], 1):  # Limit to first 5
+            for i, finding in enumerate(severity_findings["low"][:show_count], 1):
                 lines.extend(self._format_finding(finding, i))
-            if len(low) > 5:
-                lines.append(f"*... and {len(low) - 5} more*")
+            if count > show_count:
+                lines.append(f"*... and {count - show_count} more*")
+            lines.append("")
+
+        # Statistics
+        if hasattr(report, "review_stats") and report.review_stats:
+            lines.append("## Review Statistics")
+            lines.append("")
+            stats = report.review_stats
+            lines.append(
+                f"- **Execution Time:** {stats.get('execution_time_seconds', 'N/A')}s"
+            )
+            lines.append(
+                f"- **Agents:** {stats.get('agents_success', 0)}/{stats.get('agents_total', 0)} successful"
+            )
+            lines.append(f"- **Total Findings:** {len(report.findings)}")
+            lines.append(f"- **Consensus Items:** {len(report.consensus_items)}")
             lines.append("")
 
         # Footer
         lines.append("---")
-        lines.append(
-            f"*Generated by Multi-Agent Code Review Skill | {report['agent_count']} agents | {report['severity_counts']['critical']} critical, {report['severity_counts']['high']} high*"
-        )
+        lines.append("*Report generated by Multi-Agent Code Review Skill*")
 
         return "\n".join(lines)
 
-    def _format_finding(self, finding: Dict, index: int) -> List[str]:
+    def _group_by_severity(self, findings: List[Any]) -> Dict[str, List[Any]]:
+        """Group findings by severity."""
+        groups = {"critical": [], "high": [], "medium": [], "low": []}
+        for finding in findings:
+            severity = (
+                finding.severity
+                if hasattr(finding, "severity")
+                else finding.get("severity", "low")
+            )
+            if severity in groups:
+                groups[severity].append(finding)
+        return groups
+
+    def _format_finding(self, finding: Any, index: int) -> List[str]:
         """Format a single finding."""
         lines = []
 
-        category = finding.get("category", "general")
-        location = finding.get("location", "unknown")
-        description = finding.get("description", "")
-        recommendation = finding.get("recommendation", "")
-        code_suggestion = finding.get("code_suggestion", "")
-        agent = finding.get("agent", "unknown")
+        # Extract attributes (handle both object and dict)
+        if hasattr(finding, "to_dict"):
+            f = finding.to_dict()
+        else:
+            f = finding
 
-        lines.append(f"### {index}. [{category.upper()}] {location}")
-        lines.append(f"**Agent:** {agent}")
+        category = f.get("category", "general").upper()
+        location = f.get("location", "unknown")
+        description = f.get("description", "")
+        recommendation = f.get("recommendation", "")
+        code_suggestion = f.get("code_suggestion")
+        agent = f.get("agent", "unknown")
+        confidence = f.get("confidence", 80)
+
+        lines.append(f"### {index}. [{category}] {location}")
+        lines.append(f"**Agent:** {agent} (confidence: {confidence}%)")
         lines.append("")
         lines.append(description)
         lines.append("")
@@ -366,37 +529,36 @@ class ConsensusReporter:
             lines.append(code_suggestion)
             lines.append("```")
 
-        lines.append("")
-        return lines
-
-    def _format_consensus_item(self, item: Dict) -> List[str]:
-        """Format a consensus item."""
-        lines = []
-
-        severity = item.get("severity", "unknown")
-        category = item.get("category", "general")
-        description = item.get("description", "")
-        agents = item.get("agents", [])
-        count = item.get("agreement_count", len(agents))
-
-        lines.append(f"### [{severity.upper()}] {category.upper()}")
-        lines.append(f"**{count} agents agree:** {', '.join(agents)}")
-        lines.append("")
-        lines.append(description)
-        lines.append("")
-
-        # Show all recommendations
-        main_rec = item.get("recommendation", "")
-        alt_recs = item.get("alternative_recommendations", [])
-
-        if main_rec:
-            lines.append(f"**Primary Recommendation:** {main_rec}")
-
+        # Show alternative recommendations if present
+        metadata = f.get("metadata", {})
+        alt_recs = metadata.get("alternative_recommendations", [])
         if alt_recs:
             lines.append("")
             lines.append("**Alternative Approaches:**")
             for rec in alt_recs:
                 lines.append(f"- {rec}")
+
+        lines.append("")
+        return lines
+
+    def _format_consensus_item(self, item: Dict[str, Any]) -> List[str]:
+        """Format a consensus item."""
+        lines = []
+
+        severity = item.get("severity", "unknown").upper()
+        category = item.get("category", "general").upper()
+        description = item.get("description", "")
+        agents = item.get("agents", [])
+        count = item.get("agreement_count", len(agents))
+
+        lines.append(f"### [{severity}] {category}")
+        lines.append(f"**✅ {count} agents agree:** {', '.join(agents)}")
+        lines.append("")
+        lines.append(description)
+        lines.append("")
+
+        if item.get("recommendation"):
+            lines.append(f"**Recommendation:** {item['recommendation']}")
 
         if item.get("code_suggestion"):
             lines.append("")
@@ -409,20 +571,19 @@ class ConsensusReporter:
         return lines
 
 
+# Convenience function for external use
 def build_consensus(
-    agent_reports: List[Dict], code_diff: str, config: Optional[Dict] = None
-) -> str:
+    findings: List[Any], config: Optional[Dict[str, Any]] = None
+) -> Tuple[List[Dict[str, Any]], List[Any]]:
     """
-    Convenience function to build consensus report from agent outputs.
+    Convenience function to build consensus from findings.
 
     Args:
-        agent_reports: List of agent report dictionaries
-        code_diff: Original code diff
+        findings: List of Finding objects or dictionaries
         config: Optional configuration
 
     Returns:
-        Markdown formatted consensus report
+        Tuple of (consensus_items, deduplicated_findings)
     """
-    reporter = ConsensusReporter(config)
-    report = reporter.build_report(agent_reports, code_diff)
-    return reporter.to_markdown(report)
+    builder = ConsensusBuilder(config)
+    return builder.build_consensus(findings)
