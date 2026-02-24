@@ -1,0 +1,9 @@
+{
+  "name": "example-skill",
+  "version": "1.0.0",
+  "description": "Example skill template",
+  "entry_point": "main.py",
+  "author": "",
+  "tags": ["template", "example"],
+  "dependencies": []
+}
