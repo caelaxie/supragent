@@ -1,0 +1,30 @@
+{
+  "name": "multi-agent-code-review",
+  "version": "1.0.0",
+  "description": "Comprehensive code review using 6 specialized agents working in parallel: Lead Architect, Security Expert, Performance Engineer, Maintainability Guru, Edge-Case Specialist, and Junior Dev Simulator",
+  "entry_point": "main.py",
+  "author": "supragent",
+  "tags": ["code-review", "multi-agent", "security", "performance", "codex", "opencode"],
+  "dependencies": [],
+  "agents": [
+    "lead-architect",
+    "security-expert",
+    "performance-engineer",
+    "maintainability-guru",
+    "edge-case-specialist",
+    "junior-dev-simulator"
+  ],
+  "compatibility": {
+    "codex": true,
+    "opencode": true
+  },
+  "input": {
+    "type": "code_changes",
+    "description": "Diffs, PR description, or codebase section to review"
+  },
+  "output": {
+    "type": "consensus_report",
+    "format": "markdown",
+    "includes": ["findings", "severity_ranking", "code_suggestions", "consensus"]
+  }
+}
