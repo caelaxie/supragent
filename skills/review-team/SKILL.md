@@ -90,8 +90,10 @@ Return exactly one consolidated report using this shape:
 - <assumptions and constraints>
 
 ## Findings (Critical → High → Medium → Low)
+Use one global counter for discovered issues across all severities (`Issue 1`, `Issue 2`, ...).
+
 ### Critical
-1. <title>
+1. Issue 1: <title>
 - Roles: <which agents flagged it>
 - Evidence: <file:line or artifact>
 - Impact: <why it matters>
@@ -101,12 +103,15 @@ Return exactly one consolidated report using this shape:
 ```
 
 ### High
+2. Issue 2: <title>
 ...
 
 ### Medium
+3. Issue 3: <title>
 ...
 
 ### Low
+4. Issue 4: <title>
 ...
 
 ## Open Questions
@@ -126,4 +131,5 @@ If no findings exist, state:
 2. Cite evidence for every nontrivial claim.
 3. Prefer small, concrete fix suggestions.
 4. Include patch-style diffs when they materially speed implementation.
-5. Keep output concise but decision-useful.
+5. Number every discovered issue in the final report with a clear issue index.
+6. Keep output concise but decision-useful.
