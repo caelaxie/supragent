@@ -69,7 +69,7 @@ CREATE TABLE bugs (
 CREATE INDEX bugs_reported_by_idx ON bugs(reported_by);
 CREATE INDEX bugs_assigned_to_idx ON bugs(assigned_to);
 
--- For bulk loads, add FK as NOT VALID, then validate online later.
+-- For bulk loads on non-partitioned tables, add FK as NOT VALID, then validate online later.
 ALTER TABLE bugs
   ADD CONSTRAINT bugs_reported_by_fkey_v2
   FOREIGN KEY (reported_by) REFERENCES accounts(account_id)
@@ -103,6 +103,9 @@ WHERE oi.order_id IS NOT NULL
   AND o.order_id IS NULL;
 
 -- 3) Add FK without immediate full-table validation.
+-- Partitioned-table caveat: as of PostgreSQL 17 docs, foreign keys declared on
+-- partitioned tables may not support NOT VALID. If order_items is partitioned,
+-- use a validated ADD CONSTRAINT plan in a controlled lock window.
 ALTER TABLE order_items
   ADD CONSTRAINT order_items_order_id_fkey
   FOREIGN KEY (order_id) REFERENCES orders(order_id)

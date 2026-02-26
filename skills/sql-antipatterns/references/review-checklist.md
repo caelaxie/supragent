@@ -55,28 +55,51 @@ ORDER BY 1, 2, 3;
 ### 2) Referencing FK Columns Missing Supporting Index
 
 ```sql
+WITH fk AS (
+  SELECT
+    con.oid,
+    con.conrelid,
+    con.conname,
+    con.conkey,
+    array_length(con.conkey, 1) AS fk_nkeys
+  FROM pg_constraint con
+  WHERE con.contype = 'f'
+)
 SELECT
   n.nspname AS schema_name,
   c.relname AS table_name,
-  con.conname AS fk_name,
-  pg_get_constraintdef(con.oid) AS fk_def
-FROM pg_constraint con
-JOIN pg_class c ON c.oid = con.conrelid
+  fk.conname AS fk_name,
+  pg_get_constraintdef(fk.oid) AS fk_def
+FROM fk
+JOIN pg_class c ON c.oid = fk.conrelid
 JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE con.contype = 'f'
-  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
   AND NOT EXISTS (
     SELECT 1
     FROM pg_index i
-    WHERE i.indrelid = con.conrelid
+    WHERE i.indrelid = fk.conrelid
       AND i.indisvalid
       AND i.indpred IS NULL
-      AND (i.indkey::smallint[])[1:array_length(con.conkey, 1)] = con.conkey
+      AND (
+        -- Strong signal: leftmost index keys match FK columns in FK order.
+        (i.indkey::smallint[])[1:fk.fk_nkeys] = fk.conkey
+        OR (
+          -- Composite-FK fallback: same leftmost key set with different order.
+          fk.fk_nkeys > 1
+          AND (
+            SELECT array_agg(k ORDER BY k)
+            FROM unnest((i.indkey::smallint[])[1:fk.fk_nkeys]) AS t(k)
+          ) = (
+            SELECT array_agg(k ORDER BY k)
+            FROM unnest(fk.conkey) AS t(k)
+          )
+        )
+      )
   )
 ORDER BY 1, 2, 3;
 ```
 
-Note: this is a conservative baseline and intentionally ignores partial indexes. Partial indexes can still be valid for FK workloads when their predicates align with the referencing row set, but that requires manual predicate verification.
+Note: this is a conservative baseline and intentionally ignores partial indexes. It may still report false positives/negatives because planner choices depend on workload shape, operator classes, and stats. Confirm with `EXPLAIN` on representative FK-driven delete/update workloads before adding new indexes.
 
 ### 3) FK partial-index candidates (triage only)
 
@@ -194,4 +217,42 @@ HAVING count(*) >= 2
 ORDER BY 1, 2;
 ```
 
-Note: all eight are heuristics; review findings before enforcement.
+### 9) Potential Metadata Tribbles (column-per-year/status cloning)
+
+```sql
+WITH cols AS (
+  SELECT
+    table_schema,
+    table_name,
+    column_name,
+    CASE
+      WHEN column_name ~ '(_)?(19|20)[0-9]{2}$'
+        THEN regexp_replace(column_name, '(_)?(19|20)[0-9]{2}$', '')
+      WHEN column_name ~ '_(open|closed|pending|active|inactive|new|done|failed|success|error|approved|rejected)(_|$)'
+        THEN regexp_replace(column_name, '_(open|closed|pending|active|inactive|new|done|failed|success|error|approved|rejected)(_|$)', '_')
+      ELSE NULL
+    END AS base_name
+  FROM information_schema.columns
+  WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+),
+normalized AS (
+  SELECT
+    table_schema,
+    table_name,
+    column_name,
+    regexp_replace(base_name, '_+$', '') AS base_name
+  FROM cols
+  WHERE base_name IS NOT NULL
+)
+SELECT
+  table_schema,
+  table_name,
+  base_name,
+  array_agg(column_name ORDER BY column_name) AS cloned_columns
+FROM normalized
+GROUP BY 1, 2, 3
+HAVING count(*) >= 2
+ORDER BY 1, 2, 3;
+```
+
+Note: all nine are heuristics; review findings before enforcement.

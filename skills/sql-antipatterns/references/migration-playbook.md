@@ -24,6 +24,7 @@ Execution tips:
 - Use `INSERT ... ON CONFLICT ...` or merge logic for re-runnable loads.
 - On large live tables, prefer `CREATE INDEX CONCURRENTLY` for new indexes.
 - `CREATE INDEX CONCURRENTLY` cannot run inside a transaction block; run index builds outside transaction wrappers used by migration frameworks.
+- For partitioned tables, verify constraint DDL limitations up front. As of PostgreSQL 17 docs, foreign keys declared on partitioned tables may not support `NOT VALID`; plan an alternate lock window strategy when required.
 - Limit concurrent index builds and tune backfill/index job throttling to avoid saturating I/O or replica apply lag.
 
 Fail-closed dual-write checklist:
@@ -45,10 +46,25 @@ Exit criteria:
 Suggested checks:
 
 ```sql
--- Example count parity check by month
-SELECT date_trunc('month', created_at) AS bucket, count(*) FROM old_table GROUP BY 1
-EXCEPT
-SELECT date_trunc('month', created_at) AS bucket, count(*) FROM new_table GROUP BY 1;
+-- Symmetric count parity check by month (catches old-only and new-only drift)
+WITH old_counts AS (
+  SELECT date_trunc('month', created_at) AS bucket, count(*) AS row_count
+  FROM old_table
+  GROUP BY 1
+),
+new_counts AS (
+  SELECT date_trunc('month', created_at) AS bucket, count(*) AS row_count
+  FROM new_table
+  GROUP BY 1
+)
+SELECT
+  COALESCE(o.bucket, n.bucket) AS bucket,
+  o.row_count AS old_row_count,
+  n.row_count AS new_row_count
+FROM old_counts o
+FULL OUTER JOIN new_counts n USING (bucket)
+WHERE o.row_count IS DISTINCT FROM n.row_count
+ORDER BY 1;
 ```
 
 Exit criteria:

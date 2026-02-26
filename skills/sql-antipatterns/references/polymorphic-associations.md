@@ -139,6 +139,9 @@ SET feature_request_id = parent_id
 WHERE parent_type = 'FEATURE_REQUEST';
 
 -- 4) Add constraints with low-disruption rollout.
+-- Partitioned-table caveat: as of PostgreSQL 17 docs, foreign keys declared on
+-- partitioned tables may not support NOT VALID. If comments is partitioned,
+-- plan validated ADD CONSTRAINT operations in a controlled lock window.
 ALTER TABLE comments
   ADD CONSTRAINT comments_bug_id_fkey
   FOREIGN KEY (bug_id) REFERENCES bugs(bug_id) ON DELETE CASCADE
@@ -183,7 +186,7 @@ LIMIT 1;
 -- Require zero rows before dropping parent_type/parent_id.
 ```
 
-3. Switch application reads/writes, keep sync/parity checks during cutover, then drop `parent_type` and `parent_id`.
+6. Switch application reads/writes, keep sync/parity checks during cutover, then drop `parent_type` and `parent_id`.
 
 ## Rollback Considerations
 - Keep legacy `parent_type`/`parent_id` populated until parity checks stay clean through cutover.

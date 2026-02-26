@@ -126,13 +126,26 @@ SELECT
   END AS reject_reason
 FROM tokens;
 
--- 3) Persist rejects first; this survives a failed gate when run in autocommit mode.
+-- 3) Persist parse rejects first; this survives a failed gate when run in autocommit mode.
 INSERT INTO product_contact_rejects (migration_run_id, product_id, raw_token, reject_reason)
 SELECT 'MIGRATION_RUN_ID', product_id, raw_token, reject_reason
 FROM staged_product_contact_tokens
 WHERE reject_reason IS NOT NULL;
 
--- 4) Fail closed before any insert into product_contacts.
+-- 4) Resolve cast-safe tokens for FK existence checks.
+CREATE TEMP TABLE staged_product_contact_resolved AS
+SELECT product_id, raw_token::BIGINT AS account_id, raw_token
+FROM staged_product_contact_tokens
+WHERE reject_reason IS NULL;
+
+-- 5) Persist dangling-account rejects (numeric token, but no parent row).
+INSERT INTO product_contact_rejects (migration_run_id, product_id, raw_token, reject_reason)
+SELECT 'MIGRATION_RUN_ID', s.product_id, s.raw_token, 'missing_account'
+FROM staged_product_contact_resolved s
+LEFT JOIN accounts a ON a.account_id = s.account_id
+WHERE a.account_id IS NULL;
+
+-- 6) Fail closed before any insert into product_contacts.
 DO $$
 BEGIN
   IF EXISTS (
@@ -141,19 +154,22 @@ BEGIN
     WHERE migration_run_id = 'MIGRATION_RUN_ID'
   ) THEN
     RAISE EXCEPTION
-      'Backfill rejected malformed/overflow account_ids_csv tokens; inspect product_contact_rejects for migration_run_id=%',
+      'Backfill rejected malformed/overflow/dangling account_ids_csv tokens; inspect product_contact_rejects for migration_run_id=%',
       'MIGRATION_RUN_ID';
   END IF;
 END $$;
 
--- 5) Backfill only after gate passes.
+-- 7) Backfill only after gate passes.
 INSERT INTO product_contacts (product_id, account_id)
-SELECT product_id, raw_token::BIGINT AS account_id
-FROM staged_product_contact_tokens
-WHERE reject_reason IS NULL
+SELECT s.product_id, s.account_id
+FROM staged_product_contact_resolved s
+JOIN accounts a ON a.account_id = s.account_id
 ON CONFLICT DO NOTHING;
 
--- 6) Add FK constraints with online-safe rollout.
+-- 8) Add FK constraints with online-safe rollout.
+-- Partitioned-table caveat: as of PostgreSQL 17 docs, foreign keys declared on
+-- partitioned tables may not support NOT VALID. If product_contacts is
+-- partitioned, plan a validated ADD CONSTRAINT path in a controlled lock window.
 ALTER TABLE product_contacts
   ADD CONSTRAINT product_contacts_product_fkey
   FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
@@ -170,7 +186,7 @@ ALTER TABLE product_contacts
 ALTER TABLE product_contacts
   VALIDATE CONSTRAINT product_contacts_account_fkey;
 
--- 7) Cleanup reject rows only after successful backfill + validation.
+-- 9) Cleanup reject rows only after successful backfill + validation.
 DELETE FROM product_contact_rejects
 WHERE migration_run_id = 'MIGRATION_RUN_ID';
 ```

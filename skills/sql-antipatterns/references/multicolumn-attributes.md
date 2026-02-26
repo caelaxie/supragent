@@ -70,11 +70,26 @@ WHERE t.tag = 'performance';
 
 ## Migration Pattern
 1. Create the child table and indexes.
-2. Backfill existing repeating columns.
+2. Stage legacy values and capture duplicate-value conflicts before loading.
+3. Fail closed if duplicate values exist for a bug.
+4. Backfill only after the gate passes.
 
 ```sql
-INSERT INTO bug_tags (bug_id, tag_position, tag)
-SELECT bug_id, pos, tag
+-- Replace MIGRATION_RUN_ID with your deployment run id.
+CREATE TABLE IF NOT EXISTS bug_tag_rejects (
+  reject_id         BIGSERIAL PRIMARY KEY,
+  migration_run_id  TEXT NOT NULL,
+  bug_id            BIGINT NOT NULL,
+  tag               TEXT NOT NULL,
+  reject_reason     TEXT NOT NULL,
+  rejected_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS bug_tag_rejects_run_idx
+  ON bug_tag_rejects (migration_run_id);
+
+CREATE TEMP TABLE staged_bug_tags AS
+SELECT bug_id, pos AS tag_position, btrim(tag) AS tag
 FROM (
   SELECT bug_id, 1 AS pos, tag1 AS tag FROM bugs
   UNION ALL
@@ -82,12 +97,42 @@ FROM (
   UNION ALL
   SELECT bug_id, 3 AS pos, tag3 AS tag FROM bugs
 ) s
-WHERE tag IS NOT NULL AND btrim(tag) <> ''
-ON CONFLICT DO NOTHING;
+WHERE tag IS NOT NULL
+  AND btrim(tag) <> '';
+
+-- Capture duplicate values per bug before any insert; do not silently dedupe.
+INSERT INTO bug_tag_rejects (migration_run_id, bug_id, tag, reject_reason)
+SELECT 'MIGRATION_RUN_ID', bug_id, tag, 'duplicate_tag_value_for_bug'
+FROM staged_bug_tags
+GROUP BY bug_id, tag
+HAVING COUNT(*) > 1;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM bug_tag_rejects
+    WHERE migration_run_id = 'MIGRATION_RUN_ID'
+  ) THEN
+    RAISE EXCEPTION
+      'Backfill rejected duplicate tag values; inspect bug_tag_rejects for migration_run_id=%',
+      'MIGRATION_RUN_ID';
+  END IF;
+END $$;
+
+INSERT INTO bug_tags (bug_id, tag_position, tag)
+SELECT bug_id, tag_position, tag
+FROM staged_bug_tags
+ON CONFLICT (bug_id, tag_position) DO UPDATE
+SET tag = EXCLUDED.tag;
+
+-- Cleanup reject rows only after successful backfill/parity checks.
+DELETE FROM bug_tag_rejects
+WHERE migration_run_id = 'MIGRATION_RUN_ID';
 ```
 
-3. Move writes to child rows and reads to joins.
-4. Verify parity, then drop legacy columns.
+5. Move writes to child rows and reads to joins.
+6. Verify parity, then drop legacy columns.
 
 ## Rollback Considerations
 - Keep legacy `tag1`/`tag2`/`tag3` columns until parity checks pass for migrated rows.
