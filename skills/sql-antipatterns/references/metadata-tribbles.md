@@ -16,9 +16,12 @@ Treat new data values as new schema objects:
 
 ## How To Detect
 - Repeating table names that differ only by suffix (`_2024`, `_tenant42`, ...).
-- Repeating numbered columns (`phone1`, `phone2`, `phone3`).
+- Repeating value-cloned columns (`revenue2024`, `revenue2025`, `status_open_count`, `status_closed_count`).
 - Runbooks that include "create next month's/year's table."
 - Reporting SQL that manually unions many near-identical tables.
+
+Disambiguation:
+- If the shape is repeating groups like `phone1`, `phone2`, `tag1`, `tag2` in one table, classify as `multicolumn-attributes` instead of metadata tribbles.
 
 ## Legitimate Exceptions
 - Cold archive split, where historical data is intentionally isolated and never queried with hot data.
@@ -71,13 +74,14 @@ CREATE TABLE bug_comments (
 5. Cut reads, then writes, to the new model.
 6. Remove legacy tables/columns only after a stable soak period.
 
+## Rollback Considerations
+- Keep legacy tables/columns queryable and writable until partitioned-parent parity checks pass.
+- If cutover fails, route reads/writes back to legacy objects and pause partition attach/detach operations.
+- Preserve dual-write/backfill checkpoints so replay can resume from last known-good state.
+
 ## Version and Engine Caveats
 - PostgreSQL parent-level index creation propagates to partitions in PG 11+.
 - Partitioned-table uniqueness is per-partition unless partition keys are part of the unique/primary key.
-- Known FK + `ATTACH PARTITION`/`DETACH PARTITION` issue was fixed in:
-  - PG 13.17
-  - PG 14.14
-  - PG 15.9
-  - PG 16.5
-- On older patch levels, avoid risky attach/detach operations with dependent FKs, or run post-change FK consistency checks and recreate affected constraints if needed.
+- FK + `ATTACH PARTITION`/`DETACH PARTITION` behavior has received fixes across supported major/minor releases; verify your exact server version against current PostgreSQL release notes before relying on attach/detach-heavy workflows.
+- If you operate on older patch levels or mixed fleets, avoid risky attach/detach operations with dependent FKs, or run post-change FK consistency checks and recreate affected constraints if needed.
 - Other engines differ: confirm partitioning/FK semantics before porting this guidance.

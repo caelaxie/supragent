@@ -79,24 +79,107 @@ CREATE TABLE product_contacts (
   PRIMARY KEY (product_id, account_id)
 );
 
--- 2) Backfill from CSV safely.
+-- Add reverse-path index before FK validation/cutover.
+CREATE INDEX IF NOT EXISTS product_contacts_account_id_idx ON product_contacts(account_id);
+
+-- Reject log is durable for remediation; clean up only after a successful run.
+CREATE TABLE IF NOT EXISTS product_contact_rejects (
+  reject_id         BIGSERIAL PRIMARY KEY,
+  migration_run_id TEXT NOT NULL,
+  product_id       BIGINT NOT NULL,
+  raw_token        TEXT NOT NULL,
+  reject_reason    TEXT NOT NULL,
+  rejected_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS product_contact_rejects_run_idx
+  ON product_contact_rejects (migration_run_id);
+
+-- Use one run id consistently across this script.
+-- Replace MIGRATION_RUN_ID with your deployment run id before execution.
+-- Run reject capture + gate before any BEGIN/COMMIT block for cutover statements.
+
+-- 2) Classify tokens before casting so malformed/overflow values are handled safely.
+CREATE TEMP TABLE staged_product_contact_tokens AS
+WITH tokens AS (
+  SELECT
+    p.product_id,
+    btrim(tok) AS raw_token
+  FROM products p
+  CROSS JOIN LATERAL regexp_split_to_table(
+    CASE
+      WHEN NULLIF(btrim(p.account_ids_csv), '') IS NULL THEN NULL
+      ELSE p.account_ids_csv
+    END,
+    ','
+  ) AS tok
+)
+SELECT
+  product_id,
+  raw_token,
+  CASE
+    WHEN raw_token = '' THEN 'empty'
+    WHEN raw_token !~ '^[0-9]+$' THEN 'non_numeric'
+    WHEN length(raw_token) > 19
+      OR (length(raw_token) = 19 AND raw_token > '9223372036854775807') THEN 'overflow'
+    ELSE NULL
+  END AS reject_reason
+FROM tokens;
+
+-- 3) Persist rejects first; this survives a failed gate when run in autocommit mode.
+INSERT INTO product_contact_rejects (migration_run_id, product_id, raw_token, reject_reason)
+SELECT 'MIGRATION_RUN_ID', product_id, raw_token, reject_reason
+FROM staged_product_contact_tokens
+WHERE reject_reason IS NOT NULL;
+
+-- 4) Fail closed before any insert into product_contacts.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM product_contact_rejects
+    WHERE migration_run_id = 'MIGRATION_RUN_ID'
+  ) THEN
+    RAISE EXCEPTION
+      'Backfill rejected malformed/overflow account_ids_csv tokens; inspect product_contact_rejects for migration_run_id=%',
+      'MIGRATION_RUN_ID';
+  END IF;
+END $$;
+
+-- 5) Backfill only after gate passes.
 INSERT INTO product_contacts (product_id, account_id)
-SELECT p.product_id, trim(tok)::BIGINT
-FROM products p
-CROSS JOIN LATERAL regexp_split_to_table(COALESCE(p.account_ids_csv, ''), '\s*,\s*') AS tok
-WHERE tok <> ''
-  AND tok ~ '^\d+$'
+SELECT product_id, raw_token::BIGINT AS account_id
+FROM staged_product_contact_tokens
+WHERE reject_reason IS NULL
 ON CONFLICT DO NOTHING;
 
--- 3) Add FK constraints after cleanup.
+-- 6) Add FK constraints with online-safe rollout.
 ALTER TABLE product_contacts
   ADD CONSTRAINT product_contacts_product_fkey
-  FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE;
+  FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
+  NOT VALID;
 
 ALTER TABLE product_contacts
   ADD CONSTRAINT product_contacts_account_fkey
-  FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE RESTRICT;
+  FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE RESTRICT
+  NOT VALID;
+
+ALTER TABLE product_contacts
+  VALIDATE CONSTRAINT product_contacts_product_fkey;
+
+ALTER TABLE product_contacts
+  VALIDATE CONSTRAINT product_contacts_account_fkey;
+
+-- 7) Cleanup reject rows only after successful backfill + validation.
+DELETE FROM product_contact_rejects
+WHERE migration_run_id = 'MIGRATION_RUN_ID';
 ```
+
+## Rollback Considerations
+- Keep `products.account_ids_csv` as fallback read/write shape until parity checks pass.
+- If cutover fails, drop `product_contacts` constraints/tables and continue serving from legacy CSV.
+- Preserve `product_contact_rejects` rows for the failed `migration_run_id` so remediation can target exact bad tokens.
+- Delete `product_contact_rejects` rows for that `migration_run_id` only after a successful rerun.
 
 ## Version and Engine Caveats
 - PostgreSQL arrays/`jsonb` can store lists, but they still cannot enforce per-element foreign keys.

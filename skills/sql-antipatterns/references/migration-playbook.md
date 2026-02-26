@@ -22,6 +22,15 @@ Exit criteria:
 Execution tips:
 - Keep batches small enough to stay under lock/replication thresholds.
 - Use `INSERT ... ON CONFLICT ...` or merge logic for re-runnable loads.
+- On large live tables, prefer `CREATE INDEX CONCURRENTLY` for new indexes.
+- `CREATE INDEX CONCURRENTLY` cannot run inside a transaction block; run index builds outside transaction wrappers used by migration frameworks.
+- Limit concurrent index builds and tune backfill/index job throttling to avoid saturating I/O or replica apply lag.
+
+Fail-closed dual-write checklist:
+- Define a source-of-truth write order (canonical target first, legacy projection second) and fail the request if the canonical write does not commit.
+- Require an idempotency key on every dual-write path and enforce dedup at storage boundaries.
+- Document a deterministic conflict resolution policy (latest version token, authoritative side, or explicit reject) before enabling writes.
+- Make retry behavior explicit: bounded retries, backoff, and dead-lettering with loop prevention guards to stop reprocessing cycles.
 
 Exit criteria:
 - Dual-write active.

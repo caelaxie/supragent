@@ -79,9 +79,57 @@ CREATE TABLE feature_request_comments (
 
 ## Migration Pattern
 1. Add explicit nullable FK columns for each allowed parent table.
-2. Backfill from legacy `(parent_type, parent_id)` columns.
+2. Run preflight checks and fail closed on unsupported types or dangling references.
 
 ```sql
+-- Preflight A: unsupported parent_type values.
+SELECT DISTINCT parent_type
+FROM comments
+WHERE parent_type IS NULL
+   OR parent_type NOT IN ('BUG', 'FEATURE_REQUEST');
+
+-- Preflight B: dangling parent references.
+SELECT c.comment_id, c.parent_type, c.parent_id
+FROM comments c
+LEFT JOIN bugs b
+  ON c.parent_type = 'BUG'
+ AND b.bug_id = c.parent_id
+LEFT JOIN feature_requests fr
+  ON c.parent_type = 'FEATURE_REQUEST'
+ AND fr.feature_request_id = c.parent_id
+WHERE (c.parent_type = 'BUG' AND b.bug_id IS NULL)
+   OR (c.parent_type = 'FEATURE_REQUEST' AND fr.feature_request_id IS NULL);
+-- Abort if either query returns rows.
+
+-- Fail closed: stop before backfill if either preflight condition exists.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM comments
+    WHERE parent_type IS NULL
+       OR parent_type NOT IN ('BUG', 'FEATURE_REQUEST')
+  ) THEN
+    RAISE EXCEPTION 'Unsupported or NULL parent_type values found in comments';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM comments c
+    LEFT JOIN bugs b
+      ON c.parent_type = 'BUG'
+     AND b.bug_id = c.parent_id
+    LEFT JOIN feature_requests fr
+      ON c.parent_type = 'FEATURE_REQUEST'
+     AND fr.feature_request_id = c.parent_id
+    WHERE (c.parent_type = 'BUG' AND b.bug_id IS NULL)
+       OR (c.parent_type = 'FEATURE_REQUEST' AND fr.feature_request_id IS NULL)
+  ) THEN
+    RAISE EXCEPTION 'Dangling comment parent references found';
+  END IF;
+END $$;
+
+-- 3) Backfill from legacy (parent_type, parent_id).
 UPDATE comments
 SET bug_id = parent_id
 WHERE parent_type = 'BUG';
@@ -89,11 +137,58 @@ WHERE parent_type = 'BUG';
 UPDATE comments
 SET feature_request_id = parent_id
 WHERE parent_type = 'FEATURE_REQUEST';
+
+-- 4) Add constraints with low-disruption rollout.
+ALTER TABLE comments
+  ADD CONSTRAINT comments_bug_id_fkey
+  FOREIGN KEY (bug_id) REFERENCES bugs(bug_id) ON DELETE CASCADE
+  NOT VALID;
+
+ALTER TABLE comments
+  ADD CONSTRAINT comments_feature_request_id_fkey
+  FOREIGN KEY (feature_request_id) REFERENCES feature_requests(feature_request_id) ON DELETE CASCADE
+  NOT VALID;
+
+ALTER TABLE comments
+  ADD CONSTRAINT comments_exactly_one_parent_chk
+  CHECK (num_nonnulls(bug_id, feature_request_id) = 1)
+  NOT VALID;
+
+-- Add relationship-path indexes before validation/cutover.
+CREATE INDEX IF NOT EXISTS comments_bug_id_idx
+  ON comments (bug_id)
+  WHERE bug_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS comments_feature_request_id_idx
+  ON comments (feature_request_id)
+  WHERE feature_request_id IS NOT NULL;
+
+-- If you choose CREATE INDEX CONCURRENTLY for large tables, run it outside BEGIN/COMMIT.
+
+ALTER TABLE comments
+  VALIDATE CONSTRAINT comments_bug_id_fkey;
+
+ALTER TABLE comments
+  VALIDATE CONSTRAINT comments_feature_request_id_fkey;
+
+ALTER TABLE comments
+  VALIDATE CONSTRAINT comments_exactly_one_parent_chk;
+
+-- 5) Drift control: dual-write old and new columns, then verify parity before drop.
+SELECT comment_id
+FROM comments
+WHERE (parent_type = 'BUG' AND bug_id IS DISTINCT FROM parent_id)
+   OR (parent_type = 'FEATURE_REQUEST' AND feature_request_id IS DISTINCT FROM parent_id)
+LIMIT 1;
+-- Require zero rows before dropping parent_type/parent_id.
 ```
 
-3. Add FK constraints and `CHECK (num_nonnulls(...) = 1)`.
-4. Add partial indexes on each FK column.
-5. Switch application reads/writes, then drop `parent_type` and `parent_id`.
+3. Switch application reads/writes, keep sync/parity checks during cutover, then drop `parent_type` and `parent_id`.
+
+## Rollback Considerations
+- Keep legacy `parent_type`/`parent_id` populated until parity checks stay clean through cutover.
+- If rollout fails, revert reads/writes to legacy columns but keep `bug_id`/`feature_request_id` as shadow data.
+- Preserve parity query output; it identifies rows requiring resync before another drop attempt.
 
 ## Version and Engine Caveats
 - `num_nonnulls()` is PostgreSQL-specific; other engines may require equivalent `CASE` arithmetic in `CHECK`.

@@ -13,6 +13,8 @@ Use this as a fast schema/code review pass across SQL anti-patterns.
 
 ## Catalog Red-Flag Queries
 
+Coverage note: catalog queries below provide partial coverage only; treat results as triage input, not enforcement on their own.
+
 ### 1) Potential Missing FKs (`*_id` heuristic)
 
 ```sql
@@ -74,7 +76,32 @@ WHERE con.contype = 'f'
 ORDER BY 1, 2, 3;
 ```
 
-### 3) Potential Repeating-Group Columns (suffix-numbered columns)
+Note: this is a conservative baseline and intentionally ignores partial indexes. Partial indexes can still be valid for FK workloads when their predicates align with the referencing row set, but that requires manual predicate verification.
+
+### 3) FK partial-index candidates (triage only)
+
+```sql
+SELECT
+  n.nspname AS schema_name,
+  c.relname AS table_name,
+  con.conname AS fk_name,
+  irel.relname AS index_name,
+  pg_get_constraintdef(con.oid) AS fk_def,
+  pg_get_expr(i.indpred, i.indrelid) AS index_predicate
+FROM pg_constraint con
+JOIN pg_class c ON c.oid = con.conrelid
+JOIN pg_namespace n ON n.oid = c.relnamespace
+JOIN pg_index i ON i.indrelid = con.conrelid
+JOIN pg_class irel ON irel.oid = i.indexrelid
+WHERE con.contype = 'f'
+  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+  AND i.indisvalid
+  AND i.indpred IS NOT NULL
+  AND (i.indkey::smallint[])[1:array_length(con.conkey, 1)] = con.conkey
+ORDER BY 1, 2, 3, 4;
+```
+
+### 4) Potential Repeating-Group Columns (suffix-numbered columns)
 
 ```sql
 WITH cols AS (
@@ -98,7 +125,7 @@ HAVING count(*) >= 2
 ORDER BY 1, 2, 3;
 ```
 
-### 4) Potential Polymorphic Pairs (`*_type` + `*_id`)
+### 5) Potential Polymorphic Pairs (`*_type` + `*_id`)
 
 ```sql
 SELECT
@@ -119,4 +146,52 @@ WHERE c1.table_schema NOT IN ('pg_catalog', 'information_schema')
 ORDER BY 1, 2, 3;
 ```
 
-Note: all four are heuristics; review findings before enforcement.
+### 6) Potential Jaywalking Columns (`*_ids`, `*_list`, `*_csv`)
+
+```sql
+SELECT table_schema, table_name, column_name, data_type
+FROM information_schema.columns
+WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+  AND (
+    column_name LIKE '%\_ids' ESCAPE '\'
+    OR column_name LIKE '%\_list' ESCAPE '\'
+    OR column_name LIKE '%\_csv' ESCAPE '\'
+  )
+ORDER BY 1, 2, 3;
+```
+
+### 7) Potential EAV Table Shape
+
+```sql
+SELECT table_schema, table_name
+FROM information_schema.columns
+WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+GROUP BY table_schema, table_name
+HAVING
+  bool_or(column_name IN ('entity_id', 'object_id', 'owner_id'))
+  AND bool_or(column_name IN ('attr_name', 'attribute', 'key'))
+  AND bool_or(column_name IN ('attr_value', 'value', 'val'))
+ORDER BY 1, 2;
+```
+
+### 8) Potential Metadata Tribbles (suffix-cloned tables)
+
+```sql
+WITH rels AS (
+  SELECT
+    n.nspname AS table_schema,
+    c.relname AS table_name,
+    regexp_replace(c.relname, '(_20[0-9]{2}|_[0-9]{4}|_[a-z]+[0-9]+)$', '') AS base_name
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE c.relkind IN ('r', 'p')
+    AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+)
+SELECT table_schema, base_name, array_agg(table_name ORDER BY table_name) AS cloned_tables
+FROM rels
+GROUP BY 1, 2
+HAVING count(*) >= 2
+ORDER BY 1, 2;
+```
+
+Note: all eight are heuristics; review findings before enforcement.

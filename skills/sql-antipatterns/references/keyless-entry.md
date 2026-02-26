@@ -84,7 +84,8 @@ ALTER TABLE bugs
 SELECT b.bug_id, b.reported_by
 FROM bugs b
 LEFT JOIN accounts a ON a.account_id = b.reported_by
-WHERE a.account_id IS NULL
+WHERE b.reported_by IS NOT NULL
+  AND a.account_id IS NULL
 LIMIT 100;
 ```
 
@@ -98,7 +99,8 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS order_items_order_id_idx
 SELECT oi.order_id
 FROM order_items oi
 LEFT JOIN orders o ON o.order_id = oi.order_id
-WHERE o.order_id IS NULL;
+WHERE oi.order_id IS NOT NULL
+  AND o.order_id IS NULL;
 
 -- 3) Add FK without immediate full-table validation.
 ALTER TABLE order_items
@@ -111,6 +113,11 @@ ALTER TABLE order_items
 ALTER TABLE order_items
   VALIDATE CONSTRAINT order_items_order_id_fkey;
 ```
+
+## Rollback Considerations
+- Keep legacy app-side checks temporarily behind a feature flag until FK validation succeeds.
+- If rollout fails, route writes through the legacy path and drop newly added `NOT VALID` constraints.
+- Preserve orphan-audit query outputs so repaired rows can be replayed before a second validation attempt.
 
 ## Version and Engine Caveats
 - In PostgreSQL, referenced columns must be `PRIMARY KEY`, `UNIQUE`, or backed by a non-partial unique index.

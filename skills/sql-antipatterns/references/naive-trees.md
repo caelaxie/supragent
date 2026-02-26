@@ -87,8 +87,91 @@ Notes:
 
 ## Migration Pattern
 ```sql
+-- 0) Preflight (fail-closed): detect cycles before backfill.
+-- PostgreSQL 14+:
+WITH RECURSIVE probe(category_id, parent_id) AS (
+  SELECT c.category_id, c.parent_id
+  FROM categories c
+
+  UNION ALL
+
+  SELECT c.category_id, c.parent_id
+  FROM categories c
+  JOIN probe p ON c.category_id = p.parent_id
+)
+CYCLE category_id SET is_cycle USING cycle_path
+SELECT category_id, cycle_path
+FROM probe
+WHERE is_cycle
+LIMIT 1;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    WITH RECURSIVE probe(category_id, parent_id) AS (
+      SELECT c.category_id, c.parent_id
+      FROM categories c
+
+      UNION ALL
+
+      SELECT c.category_id, c.parent_id
+      FROM categories c
+      JOIN probe p ON c.category_id = p.parent_id
+    )
+    CYCLE category_id SET is_cycle USING cycle_path
+    SELECT 1
+    FROM probe
+    WHERE is_cycle
+    LIMIT 1
+  ) THEN
+    RAISE EXCEPTION 'Preflight failed: cycle detected in categories';
+  END IF;
+END
+$$;
+
+-- PostgreSQL <14 fallback:
+WITH RECURSIVE probe(category_id, parent_id, path, is_cycle) AS (
+  SELECT c.category_id, c.parent_id, ARRAY[c.category_id], false
+  FROM categories c
+
+  UNION ALL
+
+  SELECT c.category_id, c.parent_id, p.path || c.category_id, c.category_id = ANY(p.path)
+  FROM categories c
+  JOIN probe p ON c.category_id = p.parent_id
+  WHERE NOT p.is_cycle
+)
+SELECT category_id, path
+FROM probe
+WHERE is_cycle
+LIMIT 1;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    WITH RECURSIVE probe(category_id, parent_id, path, is_cycle) AS (
+      SELECT c.category_id, c.parent_id, ARRAY[c.category_id], false
+      FROM categories c
+
+      UNION ALL
+
+      SELECT c.category_id, c.parent_id, p.path || c.category_id, c.category_id = ANY(p.path)
+      FROM categories c
+      JOIN probe p ON c.category_id = p.parent_id
+      WHERE NOT p.is_cycle
+    )
+    SELECT 1
+    FROM probe
+    WHERE is_cycle
+    LIMIT 1
+  ) THEN
+    RAISE EXCEPTION 'Preflight failed: cycle detected in categories';
+  END IF;
+END
+$$;
+
 -- 1) Keep adjacency list as canonical write model.
--- 2) Add closure table for fast ancestor/descendant lookups.
+-- 2) Add closure table for fast ancestor/descendant and reverse lookups.
 CREATE TABLE category_paths (
   ancestor_id   BIGINT NOT NULL REFERENCES categories(category_id) ON DELETE CASCADE,
   descendant_id BIGINT NOT NULL REFERENCES categories(category_id) ON DELETE CASCADE,
@@ -96,23 +179,39 @@ CREATE TABLE category_paths (
   PRIMARY KEY (ancestor_id, descendant_id)
 );
 
--- 3) Backfill transitive closure from adjacency list.
-WITH RECURSIVE walk(ancestor_id, descendant_id, depth) AS (
-  SELECT c.category_id, c.category_id, 0
+-- 3) Backfill transitive closure with explicit cycle guard.
+WITH RECURSIVE walk(ancestor_id, descendant_id, depth, path, is_cycle) AS (
+  SELECT c.category_id, c.category_id, 0, ARRAY[c.category_id], false
   FROM categories c
 
   UNION ALL
 
-  SELECT w.ancestor_id, c.category_id, w.depth + 1
+  SELECT
+    w.ancestor_id,
+    c.category_id,
+    w.depth + 1,
+    w.path || c.category_id,
+    c.category_id = ANY(w.path)
   FROM walk w
   JOIN categories c ON c.parent_id = w.descendant_id
+  WHERE NOT w.is_cycle
 )
 INSERT INTO category_paths (ancestor_id, descendant_id, depth)
 SELECT ancestor_id, descendant_id, depth
 FROM walk
+WHERE NOT is_cycle
 ON CONFLICT (ancestor_id, descendant_id) DO UPDATE
 SET depth = EXCLUDED.depth;
+
+-- 4) Add reverse-lookup index after backfill to avoid backfill maintenance overhead.
+CREATE INDEX category_paths_descendant_id_idx
+  ON category_paths (descendant_id, ancestor_id);
 ```
+
+## Rollback Considerations
+- Keep `categories.parent_id` as the source of truth until closure parity checks pass.
+- If cutover fails, stop closure-table reads and return to recursive CTE reads from adjacency data.
+- If backfill is partial or bad, `TRUNCATE category_paths` and rerun after fixing cycle errors.
 
 ## Version and Engine Caveats
 - `SEARCH` and `CYCLE` are available in PostgreSQL 14+.

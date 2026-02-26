@@ -65,7 +65,14 @@ CREATE INDEX issues_attr_severity_idx
   ON issues ((attributes ->> 'severity'));
 
 CREATE INDEX issues_attr_business_value_idx
-  ON issues (((attributes ->> 'business_value')::int));
+  ON issues (
+    (
+      CASE
+        WHEN (attributes ->> 'business_value') ~ '^-?[0-9]+(\.[0-9]+)?$'
+          THEN (attributes ->> 'business_value')::numeric
+      END
+    )
+  );
 ```
 
 Example query shapes:
@@ -77,27 +84,89 @@ WHERE attributes @> '{"severity":"critical"}';
 
 SELECT issue_id
 FROM issues
-WHERE ((attributes ->> 'business_value')::int) >= 8;
+WHERE (
+  CASE
+    WHEN (attributes ->> 'business_value') ~ '^-?[0-9]+(\.[0-9]+)?$'
+      THEN (attributes ->> 'business_value')::numeric
+  END
+) >= 8;
 ```
 
 ## Migration Pattern
 1. Create target tables (typed subtype schema, or base table with `jsonb` attributes).
-2. Backfill EAV rows into per-entity documents.
+2. Run fail-closed prechecks for promoted core attributes (`issue_type`, `status`, `reported_by`).
 
 ```sql
+-- Precheck A: conflicting duplicates for core attrs.
+SELECT issue_id, attr_name, array_agg(DISTINCT attr_value ORDER BY attr_value) AS values_seen
+FROM issue_attributes
+WHERE attr_name IN ('issue_type', 'status', 'reported_by')
+GROUP BY issue_id, attr_name
+HAVING COUNT(DISTINCT attr_value) > 1;
+
+-- Precheck B: avoid silent collapse by requiring exactly one core row per issue.
+SELECT issue_id
+FROM issue_attributes
+GROUP BY issue_id
+HAVING COUNT(*) FILTER (WHERE attr_name = 'issue_type') <> 1
+    OR COUNT(*) FILTER (WHERE attr_name = 'status') <> 1
+    OR COUNT(*) FILTER (WHERE attr_name = 'reported_by') <> 1;
+
+-- Precheck C: guard BIGINT cast for reported_by.
+SELECT issue_id, attr_value AS reported_by_raw
+FROM issue_attributes
+WHERE attr_name = 'reported_by'
+  AND NOT (
+    attr_value ~ '^[0-9]+$'
+    AND (
+      length(attr_value) < 19
+      OR (length(attr_value) = 19 AND attr_value <= '9223372036854775807')
+    )
+  );
+
+-- Precheck D: fail closed on duplicate keys before jsonb_object_agg.
+SELECT issue_id, attr_name, COUNT(*) AS row_count
+FROM issue_attributes
+GROUP BY issue_id, attr_name
+HAVING COUNT(*) > 1;
+```
+
+3. Backfill only after all prechecks return zero rows.
+
+```sql
+WITH per_issue AS (
+  SELECT
+    issue_id,
+    MAX(attr_value) FILTER (WHERE attr_name = 'issue_type') AS issue_type,
+    MAX(attr_value) FILTER (WHERE attr_name = 'status') AS status,
+    MAX(attr_value) FILTER (WHERE attr_name = 'reported_by') AS reported_by_raw,
+    jsonb_object_agg(attr_name, attr_value ORDER BY attr_name) AS attributes
+  FROM issue_attributes
+  GROUP BY issue_id
+)
 INSERT INTO issues (issue_id, issue_type, status, reported_by, attributes)
 SELECT
   issue_id,
-  MAX(attr_value) FILTER (WHERE attr_name = 'issue_type') AS issue_type,
-  MAX(attr_value) FILTER (WHERE attr_name = 'status') AS status,
-  (MAX(attr_value) FILTER (WHERE attr_name = 'reported_by'))::bigint AS reported_by,
-  jsonb_object_agg(attr_name, attr_value) AS attributes
-FROM issue_attributes
-GROUP BY issue_id;
+  issue_type,
+  status,
+  reported_by_raw::bigint AS reported_by,
+  attributes
+FROM per_issue
+ON CONFLICT (issue_id) DO UPDATE
+SET
+  issue_type = EXCLUDED.issue_type,
+  status = EXCLUDED.status,
+  reported_by = EXCLUDED.reported_by,
+  attributes = EXCLUDED.attributes;
 ```
 
-3. Promote frequently queried JSON keys into typed columns where needed.
-4. Dual-write briefly, validate parity, then retire the EAV table.
+4. Promote frequently queried JSON keys into typed columns where needed.
+5. Dual-write briefly, validate parity, then retire the EAV table.
+
+## Rollback Considerations
+- Keep `issue_attributes` readable/writable until parity checks pass for row counts and core columns.
+- If cutover fails, switch reads back to EAV and truncate/rebuild `issues` from corrected source rows.
+- Keep precheck outputs for triage; they identify rows that must be fixed before reattempt.
 
 ## Version and Engine Caveats
 - `jsonb`, GIN operator classes (`jsonb_ops`/`jsonb_path_ops`), and `@?`/`@@` are PostgreSQL features.

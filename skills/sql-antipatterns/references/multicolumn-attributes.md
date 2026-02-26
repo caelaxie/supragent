@@ -89,6 +89,11 @@ ON CONFLICT DO NOTHING;
 3. Move writes to child rows and reads to joins.
 4. Verify parity, then drop legacy columns.
 
+## Rollback Considerations
+- Keep legacy `tag1`/`tag2`/`tag3` columns until parity checks pass for migrated rows.
+- If cutover fails, switch reads/writes back to legacy columns and rebuild `bug_tags`.
+- Retain `(bug_id, tag_position)` mapping from backfill so replay is deterministic.
+
 ## Version and Engine Caveats
 - Pattern is engine-agnostic, but index types, generated columns, and conflict-handling syntax vary by engine.
 - If order is irrelevant, omit `tag_position` and use `PRIMARY KEY (bug_id, tag)` instead.

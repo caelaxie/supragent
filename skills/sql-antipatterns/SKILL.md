@@ -1,6 +1,6 @@
 ---
 name: sql-antipatterns
-description: Use when designing, reviewing, or writing SQL tables, schemas, and queries to detect and remediate SQL anti-patterns with PostgreSQL-first, constraint-backed designs and migration guidance.
+description: Use when designing, reviewing, or writing SQL tables, schemas, and queries to detect and remediate SQL anti-patterns with PostgreSQL-first, constraint-backed designs and fail-closed migration guidance.
 ---
 
 # SQL Anti-Patterns
@@ -11,6 +11,7 @@ Default posture:
 - Preserve relational guarantees (types, keys, constraints).
 - Prefer one logical model plus physical optimization (indexes/partitioning), not schema cloning.
 - Keep migrations reversible and verifiable.
+- Prefer fail-closed migration checks over silent coercion/skips.
 
 ## Workflow
 
@@ -21,6 +22,7 @@ Default posture:
 
 2. Load baseline review guidance:
 - Always read `references/review-checklist.md` for schema/code reviews.
+- For any migration or production DDL/backfill/cutover request, also read `references/migration-playbook.md`.
 
 3. Load only relevant anti-pattern references:
 - Do not load all references by default.
@@ -44,7 +46,7 @@ Default posture:
 - Tree/hierarchy traversal pain, fixed-depth joins, ancestor/descendant queries:
   Read `references/naive-trees.md`.
 
-- Missing foreign keys, app-side referential checks, orphan cleanup scripts:
+- Missing foreign keys, app-side referential checks, orphan cleanup scripts, or slow parent deletes/updates caused by unindexed child FK columns:
   Read `references/keyless-entry.md`.
 
 - `(entity_id, attr_name, attr_value)` core model, heavy pivots/stringly-typed logic:
@@ -61,6 +63,16 @@ Default posture:
 
 - Need phased rollout/cutover/rollback template:
   Read `references/migration-playbook.md`.
+
+## Trigger Phrases (User Language)
+
+- "comma-separated IDs", "CSV IDs in one column", "array of IDs in text"
+- "custom fields table", "name/value attributes", "EAV"
+- "generic relation", "type + id parent", "polymorphic parent"
+- "orphans cleanup job", "missing FKs", "foreign key errors in app only"
+- "tag1/tag2 columns", "phone1 phone2", "add one more tag column"
+- "table per year", "tenant-specific tables", "new yearly table"
+- "ALTER TABLE on huge table", "backfill then cutover", "dual-write migration"
 
 ## Reference Files
 
@@ -104,6 +116,8 @@ When adding a new anti-pattern:
 - `## Preferred Design`
 - `## PostgreSQL Implementation Patterns`
 - `## Migration Pattern`
+- `## Rollback Considerations`
 - `## Version and Engine Caveats`
 2. Add it to `## Reference Files`.
 3. Add a symptom route in `## Routing Table`.
+4. Update `references/review-checklist.md` when the new anti-pattern should be covered by baseline review heuristics.
