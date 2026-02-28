@@ -36,7 +36,10 @@ T2: <step> -> depends_on: [T1] -> verify: <artifact/check>
 
 - Run at least one task-relevant verification step.
 - Code/config changes: run executable checks.
+- Feature work: add or update automated tests for new behavior, including at least one edge/failure path when feasible.
 - Review-only tasks: run deterministic evidence collection (for example diff/file inspection) and disclose unverified runtime behavior.
+- Run stack-relevant quality gates before completion (at minimum lint, typecheck, and targeted tests when available).
+- For dependency or security-sensitive changes, run available security checks (for example dependency vulnerability scan or SAST) and report results; if unavailable, disclose explicitly.
 - Report commands/checks run and outcomes.
 - If checks cannot run, explain why and list unverified items.
 
@@ -67,3 +70,5 @@ Internal self-check (not required user-facing format unless editing this guideli
 3. Verification rules include evidence/unverified disclosure.
 4. Dependency approval policy is respected.
 5. Simplification claims include behavior-preservation rationale.
+6. Feature work includes tests for added behavior (and edge/failure path when feasible).
+7. Quality gates include lint/typecheck/tests and security checks, or explicit unverified disclosure.
