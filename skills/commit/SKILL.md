@@ -5,86 +5,39 @@ description: Create well-formatted git commits using conventional commit message
 
 # Git Conventional Commit
 
-## Overview
+## Goal
 
-Stage changes, analyze diffs, optionally split work into multiple commits, and create concise conventional commit messages without scopes or trailer lines.
+Create accurate, scoped commits with concise conventional messages.
 
 ## Workflow
 
-1. **Stage files**
-   - If nothing is staged, auto-stage all modified/new files with `git add`.
+1. Determine commit scope before staging.
+- If a reviewed-file allowlist exists (for example from `review-team`), use it as the scope source of truth.
 
-2. **Analyze changes**
-   - Run `git diff` to understand what is being committed and ensure the message reflects the changes.
+2. Stage only in-scope files.
+- Prefer explicit path staging (`git add <path> ...`).
+- If out-of-scope files are already staged, unstage them before continuing.
+- Use blanket staging only when the user explicitly asks to commit all current changes.
 
-3. **Split if needed**
-   - If multiple distinct logical changes are detected, suggest separate commits.
+3. Analyze what will be committed.
+- Use `git diff --cached` for message drafting and scope verification.
+- If unstaged changes exist, inspect them separately and keep them out of this commit unless requested.
 
-4. **Create commit**
-   - Generate a concise conventional commit message and commit the staged changes.
+4. Split when needed.
+- Split by logical unit when changes are unrelated, cross-type (code/docs/tests), or too large for a clear review.
 
-## Commit Message Format
+5. Commit with conventional format.
+- Format: `<type>: <description>`.
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`.
+- Rules: imperative mood, first line under 72 chars, no scopes, no trailer lines.
 
-Use `<type>: <description>` with one of:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation
-- `style`: Formatting only (no logic change)
-- `refactor`: Code restructuring
-- `perf`: Performance improvement
-- `test`: Adding/fixing tests
-- `chore`: Build, tooling, dependencies
+## Command Guardrails
 
-Rules:
-- Present tense, imperative mood (e.g., "add" not "added").
-- First line under 72 characters.
-- Be specific about what changed.
-- Do not include scopes in parentheses.
-- Do not add trailer lines (Co-Authored-By, Signed-off-by, etc.).
+- Use `git commit -m "<subject>"` (optional second `-m` for body).
+- Do not use heredocs for commit messages.
 
-## When to Split Commits
+## Output
 
-Split when changes involve:
-- Unrelated parts of the codebase
-- Different types (feature vs docs vs tests)
-- Large changes that are clearer separated
-
-## Examples
-
-Single commits:
-```
-feat: add user authentication system
-fix: resolve memory leak in rendering process
-docs: update API documentation with new endpoints
-refactor: simplify error handling in parser
-chore: update package.json dependencies
-```
-
-Split commit scenario:
-```
-feat: add solc version type definitions
-docs: update documentation for new solc versions
-test: add unit tests for solc version features
-chore: update dependencies
-```
-
-## Technical Implementation
-
-Do not use heredocs for commit messages; they fail in sandboxed environments. Use:
-```bash
-git commit -m "feat: add user authentication"
-git commit -m "feat: add user authentication" -m "Adds login, logout, and session management."
-```
-
-Avoid:
-```bash
-git commit -m "$(cat <<'EOF'
-message here
-EOF
-)"
-```
-
-## Notes
-
-- Already-staged files are committed as-is; unstaged changes trigger auto-staging.
-- When splitting, help stage and commit each change separately.
+- State what was committed (scope summary).
+- Show final commit message used.
+- If any changes were intentionally excluded, state why.

@@ -5,85 +5,59 @@ description: Create or update GitHub pull requests for the current branch using 
 
 # PR
 
-## Overview
+## Goal
 
-Create or update a pull request for the current branch with a consistent title/body format derived from git context and the diff.
+Create or update a PR with a base branch, title, and body that match the analyzed diff.
 
 ## Workflow
 
-### 1. Determine base branch
-
-Run:
+1. Resolve PR state and base branch.
+- Run:
+```bash
+gh pr view --json number,baseRefName,title,body 2>/dev/null
+gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null || echo main
 ```
-git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo main
-```
+- Base precedence:
+  - Existing PR: use `baseRefName`.
+  - Otherwise use repo default branch.
+  - Fallback to `main`.
 
-Use the result as `BASE` in subsequent commands.
-
-### 2. Gather context (run in parallel)
-
-```
+2. Gather context (parallel).
+```bash
 git log --oneline BASE..HEAD
 git diff --stat BASE...HEAD
-gh pr view --json number,title,body 2>/dev/null
+gh pr view --json number,title,body,baseRefName 2>/dev/null
 ```
 
-If `gh pr view` returns data, the PR already exists.
+3. Inspect changes.
+- If diff is moderate (<~500 lines), inspect full `git diff BASE...HEAD`.
+- If large, inspect changed files directly and capture key file:line references.
 
-### 3. Inspect changes
+4. Draft PR metadata.
+- Title: `type: description` (`feat|fix|refactor|chore|docs|test`).
+- Body sections:
+  - `## Summary` (1-3 sentences)
+  - `## Key Changes` (5-8 concrete bullets with file:line refs)
 
-- If the diff stat is under ~500 lines, run: `git diff BASE...HEAD`
-- If larger, read the changed files directly to capture key changes and file:line references.
-
-### 4. Draft PR title and body
-
-Guidelines:
-- **Title**: `type: description` (feat, fix, refactor, chore, docs, test)
-- **Summary**: 1–3 sentences explaining what changed and why
-- **Key Changes**: 5–8 bullets with `file:line` references; use `[new]`, `[removed]`, `[refactored]` where applicable
-- **Style**: present tense, direct language, no fluff
-
-Body format:
+5. Create or update.
+- Create:
+```bash
+git push -u origin HEAD
+gh pr create --base "<BASE>" --title "<title>" --body "<body>"
 ```
-## Summary
-
-<1-3 sentences>
-
-## Key Changes
-
-<bullets with file:line references>
+- Update:
+```bash
+gh pr edit --base "<BASE>" --title "<title>" --body "<body>"
 ```
 
-### 5. Create or update the PR
+## Guardrails
 
-- If no PR exists:
-  - Push the branch if needed: `git push -u origin HEAD`
-  - Create: `gh pr create --title "<title>" --body "<body>"`
-- If a PR exists:
-  - Update: `gh pr edit --title "<title>" --body "<body>"`
+- Keep analysis diff and PR `--base` aligned.
+- If branch has uncommitted changes, note they are not part of the PR.
+- This skill is independent of `review-team`; do not add review-report sections.
+- If a request also requires `review-team`, run in a separate flow/turn. Do not co-trigger or merge output contracts.
 
-### 6. Output result
+## Output
 
-- Show the PR URL
-- Briefly state whether it was created or updated
-
-## Example
-
-Title:
-```
-feat: add device-based authentication
-```
-
-Body:
-```
-## Summary
-
-Add device ID authentication flow for mobile clients, enabling secure login without user credentials.
-
-## Key Changes
-
-- [new] Device ID validation logic (src/auth/device.ts:45)
-- [new] Mobile client configuration (src/config/clients.ts:12)
-- Update token validator to accept device tokens (src/auth/validator.ts:89)
-- [new] Test cases for device flow (src/auth/__tests__/device.test.ts:1)
-```
+- PR URL.
+- Whether PR was created or updated.
