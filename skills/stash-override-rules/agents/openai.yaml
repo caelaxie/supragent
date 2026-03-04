@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stash Override Builder"
+  short_description: "Create and validate .stoverride patches for Stash VPN"
+  default_prompt: "Use $stash-override-rules to produce a minimal Stash override and verification checklist."
