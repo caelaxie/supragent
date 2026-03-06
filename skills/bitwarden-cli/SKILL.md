@@ -62,7 +62,6 @@ BW_CLIENTID=... BW_CLIENTSECRET=... bw login --apikey
 ```bash
 export BW_SESSION="$(bw unlock --raw)"
 bw status
-bw --session "$BW_SESSION" list items --search github
 ```
 
 - `bw login` authenticates the account. `bw unlock` decrypts the vault and returns a new session key.
@@ -70,26 +69,27 @@ bw --session "$BW_SESSION" list items --search github
 - Prefer exporting `BW_SESSION` for a single shell session or pass `--session` per command when you want tighter scope.
 - Never echo `BW_SESSION` into logs, tickets, or chat output.
 
-6. Sync vault state before reads when other clients may have changed data.
+6. Sync vault state before item searches and other reads.
 
 ```bash
 bw sync
 bw sync --last
+bw --session "$BW_SESSION" list items --search github
 ```
 
-- Use `bw sync` before reads if the vault may be stale.
+- Run `bw sync` immediately before `bw list ... --search ...` when trying to find an item.
+- Use `bw sync` before other reads if the vault may be stale.
 - Use `bw sync -f` only when troubleshooting stale local state or a partial sync problem.
 
 7. Use `bw list` and `bw get` for read paths.
 
 ```bash
-bw --session "$BW_SESSION" list items --search github
 bw --session "$BW_SESSION" get item <item-id>
 bw --session "$BW_SESSION" get password github.com
 bw --session "$BW_SESSION" get totp github.com
 ```
 
-- Use `bw list` to discover candidate objects and IDs.
+- Use `bw list` after `bw sync` to discover candidate objects and IDs.
 - Use `bw get item` for the full JSON object.
 - Use `bw get password`, `bw get username`, `bw get uri`, `bw get totp`, or `bw get notes` when the user needs one field.
 - Use `jq` after `bw get item` when the user needs targeted extraction from object JSON.
@@ -146,7 +146,7 @@ bw logout
 - Prefer prompt-based login or `--passwordenv` over putting passwords directly in shell history.
 - Prefer `--apikey` for automation instead of personal interactive login flows.
 - Treat `bw get password`, `bw get totp`, and attachment retrieval as sensitive output and redact by default.
-- Use `bw sync` before reads if multiple devices or teammates may have modified shared vault content.
+- Run `bw sync` before any item search, and before other reads if multiple devices or teammates may have modified shared vault content.
 - Start create flows from `bw get template` and edit flows from `bw get item`; do not hand-build partial JSON for `bw edit`.
 - If the user really wants app-runtime secret injection instead of vault CRUD, note that Bitwarden Secrets Manager is a better fit than the Password Manager CLI.
 
@@ -160,6 +160,8 @@ bw logout
   - Replace the old `BW_SESSION`. Previous session keys become invalid on each unlock.
 - The wrong server is configured:
   - Check `bw config server` and `bw status`, then re-run `bw config server <value>` before logging in again if needed.
+- A search misses an item that should exist:
+  - Run `bw sync`, then retry `bw list items --search ...` before assuming the item is absent.
 - Reads look stale:
   - Run `bw sync` or `bw sync -f`, then retry the read.
 - `bw edit` drops fields unexpectedly:
