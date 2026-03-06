@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bitwarden CLI Helper"
+  short_description: "Use Bitwarden CLI for vault access and edits"
+  default_prompt: "Use $bitwarden-cli to configure Bitwarden CLI, unlock a vault, inspect items, and safely create or edit objects from the terminal."
