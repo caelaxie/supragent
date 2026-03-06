@@ -1,0 +1,4 @@
+interface:
+  display_name: "1Password CLI Helper"
+  short_description: "Use 1Password CLI for secure secret access"
+  default_prompt: "Use $1password-cli to sign in, read secret references, and inject secrets into commands or templates safely."
