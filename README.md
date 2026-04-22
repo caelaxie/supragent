@@ -24,6 +24,7 @@ Use the same commands without `--global` when you want a local install.
 |---|---|
 | `commit` | Produces conventional commits, staged-change workflows, and commit message strategy support. |
 | `d2lang` | Supports D2 diagram creation, refactoring, validation, and export workflows. |
+| `hermes-plugin-development` | Guides Hermes plugin authoring and validation across manifests, registration, tools, hooks, and enablement. |
 | `modified-karpathy-guidelines` | Provides coding guidance to reduce overcomplication and improve code quality. |
 | `pr` | Manages GitHub pull-request creation and updates using the `gh` CLI context. |
 | `review-team` | Coordinates parallel review roles for evidence-based, severity-ranked findings and fixes. |
