@@ -22,6 +22,8 @@ Use the same commands without `--global` when you want a local install.
 
 | Skill | Description |
 |---|---|
+| `1password-cli` | Secure secret access via 1Password CLI (`op`) for reading, injecting, and templating secrets. |
+| `bitwarden-cli` | Bitwarden CLI (`bw`) workflows for vault auth, session management, and secret retrieval. |
 | `commit` | Produces conventional commits, staged-change workflows, and commit message strategy support. |
 | `d2lang` | Supports D2 diagram creation, refactoring, validation, and export workflows. |
 | `hermes-plugin-development` | Guides Hermes plugin authoring and validation across manifests, registration, tools, hooks, and enablement. |
