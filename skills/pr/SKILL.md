@@ -1,13 +1,21 @@
 ---
 name: pr
-description: Create or update GitHub pull requests for the current branch using the gh CLI. Use when asked to open, draft, or refresh a PR, or to generate a PR title/body from git diff/log context.
+description: Fallback GitHub pull-request creation/update workflow using the gh CLI. Use only when the current project does not define PR-specific guidelines, templates, or commands.
 ---
 
 # PR
 
 ## Goal
 
-Create or update a PR with a base branch, title, and body that match the analyzed diff.
+When the current project has no PR-specific guidance, create or update a PR with a base branch, title, and body that match the analyzed diff.
+
+## Fallback Scope
+
+Use this skill only as fallback PR guidance, whether it is installed globally or locally. Before following this workflow, check the current project for files that define PR-specific instructions, such as `AGENTS.md`, `CONTRIBUTING.md`, `README.md`, `.github/pull_request_template.md`, or other local docs referenced by the project.
+
+If the current project defines PR guidelines, templates, required sections, title/body conventions, review conventions, or create/update commands, disregard this skill and follow the project-local guidance instead. Do not merge this skill's default title format, body sections, or commands into a project-defined PR process.
+
+Do not treat the mere existence of a file as project PR guidance; defer only when the file actually prescribes PR behavior.
 
 ## Workflow
 

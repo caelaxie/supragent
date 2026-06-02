@@ -1,13 +1,21 @@
 ---
 name: commit
-description: Create well-formatted git commits using conventional commit messages. Use when asked to stage changes, analyze diffs, split work into multiple commits, or craft a conventional commit message for a repository.
+description: Fallback git commit workflow using conventional commit messages. Use only when the current project does not define commit-specific guidelines, message formats, staging rules, or commands.
 ---
 
 # Git Conventional Commit
 
 ## Goal
 
-Create accurate, scoped commits with concise conventional messages.
+When the current project has no commit-specific guidance, create accurate, scoped commits with concise conventional messages.
+
+## Fallback Scope
+
+Use this skill only as fallback commit guidance, whether it is installed globally or locally. Before following this workflow, check the current project for files that define commit-specific instructions, such as `AGENTS.md`, `CONTRIBUTING.md`, `README.md`, `.gitmessage`, `.github` docs, or other local docs referenced by the project.
+
+If the current project defines commit guidelines, message formats, trailer requirements, signing requirements, staging rules, branch policies, or commit commands, disregard this skill and follow the project-local guidance instead. Do not merge this skill's conventional message format, staging defaults, split rules, or command guardrails into a project-defined commit process.
+
+Do not treat the mere existence of a file as project commit guidance; defer only when the file actually prescribes commit behavior.
 
 ## Workflow
 
