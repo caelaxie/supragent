@@ -16,6 +16,7 @@ This scaffold intentionally does not define Rust-specific rules yet. Add detaile
 Load reference files only when they are relevant to the task. Keep each reference one level deep under `references/` and link it from this section after adding it.
 
 - `references/lints.md`: compiler lint, Clippy lint, and lint override guidance from Microsoft Pragmatic Rust Guidelines.
+- `references/error-types.md`: canonical public error struct and upstream-cause guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/external-types.md`: public API external type leakage guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/magic-values.md`: documented magic value guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/naming.md`: concise type and trait naming guidance from Microsoft Pragmatic Rust Guidelines.
