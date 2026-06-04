@@ -7,6 +7,7 @@ This reference includes only these Libraries / UX guidelines:
 - [Abstractions Don't Visibly Nest (`M-SIMPLE-ABSTRACTIONS`)](https://microsoft.github.io/rust-guidelines/guidelines/libs/ux/index.html#M-SIMPLE-ABSTRACTIONS)
 - [Avoid Smart Pointers and Wrappers in APIs (`M-AVOID-WRAPPERS`)](https://microsoft.github.io/rust-guidelines/guidelines/libs/ux/index.html#M-AVOID-WRAPPERS)
 - [Prefer Types over Generics, Generics over Dyn Traits (`M-DI-HIERARCHY`)](https://microsoft.github.io/rust-guidelines/guidelines/libs/ux/index.html#M-DI-HIERARCHY)
+- [Services are Clone (`M-SERVICES-CLONE`)](https://microsoft.github.io/rust-guidelines/guidelines/libs/ux/index.html#M-SERVICES-CLONE)
 
 ## Abstractions Don't Visibly Nest (M-SIMPLE-ABSTRACTIONS)
 
@@ -55,3 +56,18 @@ Escalation order:
 Avoid porting interface-heavy designs directly into Rust. A broad async trait plus `Rc<dyn Trait>`, `Arc<dyn Trait>`, or similar public wrapper often creates object-safety, async, composition, and API ergonomics problems.
 
 Keep traits focused on the operation being consumed. If a larger abstraction is needed, compose it from narrower subtraits rather than starting with one broad dependency trait.
+
+## Services are Clone (M-SERVICES-CLONE)
+
+Heavyweight service types and thread-local singleton handles should implement cheap shared-ownership `Clone` semantics. This applies especially to service handles users are expected to create during application initialization and pass into several other services.
+
+Expose the service as a normal crate-owned type instead of exposing `Arc<ServiceInner>` or another wrapper. Internally, use the `Arc<Inner>` pattern or an equivalent shared handle so cloning the public service is cheap and does not duplicate heavyweight state.
+
+Construction pattern:
+
+- Create one service handle at the application or thread initialization boundary.
+- Pass `&Service` into dependent service constructors.
+- Clone the service inside the dependent constructor only when it must be stored.
+- Forward public methods through the handle to the inner implementation.
+
+This keeps dependency wiring ergonomic while avoiding public wrapper leakage. Callers can reuse service handles freely without deciding ownership strategy at every constructor call.
