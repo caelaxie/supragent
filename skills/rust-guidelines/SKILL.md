@@ -21,7 +21,7 @@ Load reference files only when they are relevant to the task. Keep each referenc
 - `references/external-types.md`: public API external type leakage guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/api-ergonomics.md`: flexible parameter trait and inherent functionality guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/magic-values.md`: documented magic value guidance from Microsoft Pragmatic Rust Guidelines.
-- `references/naming.md`: concise type and trait naming guidance from Microsoft Pragmatic Rust Guidelines.
+- `references/naming.md`: concise type and trait naming, Rust casing, constructor, conversion, getter, iterator, and ownership-variant naming guidance from Microsoft Pragmatic Rust Guidelines and the PingCAP Rust Style Guide.
 - `references/panic-handling.md`: panic versus recoverable error guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/public-traits.md`: public `Debug` and `Display` implementation guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/regular-functions.md`: regular function versus associated function guidance from Microsoft Pragmatic Rust Guidelines.
