@@ -19,6 +19,7 @@ Load reference files only when they are relevant to the task. Keep each referenc
 - `references/construction.md`: builder and cascaded initialization guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/error-types.md`: canonical public error struct and upstream-cause guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/external-types.md`: public API external type leakage guidance from Microsoft Pragmatic Rust Guidelines.
+- `references/api-ergonomics.md`: flexible parameter trait and inherent functionality guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/magic-values.md`: documented magic value guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/naming.md`: concise type and trait naming guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/panic-handling.md`: panic versus recoverable error guidance from Microsoft Pragmatic Rust Guidelines.
