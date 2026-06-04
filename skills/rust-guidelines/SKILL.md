@@ -21,3 +21,4 @@ Load reference files only when they are relevant to the task. Keep each referenc
 - `references/panic-handling.md`: panic versus recoverable error guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/public-traits.md`: public `Debug` and `Display` implementation guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/regular-functions.md`: regular function versus associated function guidance from Microsoft Pragmatic Rust Guidelines.
+- `references/structured-logging.md`: structured logging and message-template guidance from Microsoft Pragmatic Rust Guidelines.
