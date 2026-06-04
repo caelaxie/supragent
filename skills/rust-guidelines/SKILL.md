@@ -30,3 +30,4 @@ Load reference files only when they are relevant to the task. Keep each referenc
 - `references/send-types.md`: public `Send` compatibility guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/simple-abstractions.md`: public API abstraction, wrapper exposure, service handle, and dependency hierarchy guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/structured-logging.md`: structured logging and message-template guidance from Microsoft Pragmatic Rust Guidelines.
+- `references/trait-impls.md`: trait implementation ordering, common standard traits, conversion traits, `Deref`, operators, iterators, `Drop`, and unsafe impl guidance from the Rust API Guidelines and the PingCAP Rust Style Guide.
