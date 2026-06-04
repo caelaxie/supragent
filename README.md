@@ -30,5 +30,6 @@ Use the same commands without `--global` when you want a local install.
 | `modified-karpathy-guidelines` | Provides coding guidance to reduce overcomplication and improve code quality. |
 | `pr` | Fallback GitHub pull-request workflow when a project has no PR-specific guidance. |
 | `review-team` | Coordinates parallel review roles for evidence-based, severity-ranked findings and fixes. |
+| `rust-guidelines` | Rust-wide coding, review, test, Cargo, API, async, unsafe, FFI, and performance guidance. |
 | `sql-antipatterns` | Audits PostgreSQL designs for anti-patterns and recommends constraint-first alternatives. |
 | `stash-override-rules` | Helps author, merge, and validate Stash VPN override rules and routing behavior. |

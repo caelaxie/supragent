@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rust Guidelines"
+  short_description: "Rust-wide coding, review, test, Cargo, and API guidance."
+  default_prompt: "Use rust-guidelines for any Rust project work, including code changes, reviews, tests, Cargo configuration, APIs, async, unsafe, FFI, and performance."
