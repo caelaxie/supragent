@@ -16,4 +16,6 @@ This scaffold intentionally does not define Rust-specific rules yet. Add detaile
 Load reference files only when they are relevant to the task. Keep each reference one level deep under `references/` and link it from this section after adding it.
 
 - `references/lints.md`: compiler lint, Clippy lint, and lint override guidance from Microsoft Pragmatic Rust Guidelines.
+- `references/naming.md`: concise type and trait naming guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/public-traits.md`: public `Debug` and `Display` implementation guidance from Microsoft Pragmatic Rust Guidelines.
+- `references/regular-functions.md`: regular function versus associated function guidance from Microsoft Pragmatic Rust Guidelines.
