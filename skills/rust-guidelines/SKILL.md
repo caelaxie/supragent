@@ -33,4 +33,4 @@ Load reference files only when they are relevant to the task. Keep each referenc
 - `references/statics.md`: static and thread-local global state guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/structured-logging.md`: structured logging and message-template guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/trait-impls.md`: trait implementation ordering, common standard traits, conversion traits, `Deref`, operators, iterators, `Drop`, and unsafe impl guidance from the Rust API Guidelines and the PingCAP Rust Style Guide.
-- `references/unsafe-code.md`: unsafe code justification, safety documentation, performance, abstraction, and FFI guidance from Microsoft Pragmatic Rust Guidelines and the Rust API Guidelines.
+- `references/unsafe-code.md`: unsafe code justification, soundness, unsafe marker semantics, safety documentation, performance, abstraction, and FFI guidance from Microsoft Pragmatic Rust Guidelines and the Rust API Guidelines.
