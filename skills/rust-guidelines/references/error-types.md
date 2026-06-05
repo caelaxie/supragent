@@ -1,10 +1,14 @@
 # Error Type Guidelines
 
-Source: [Microsoft Pragmatic Rust Guidelines - Libraries / UX Guidelines](https://microsoft.github.io/rust-guidelines/guidelines/libs/ux/index.html)
+Sources:
+
+- [Microsoft Pragmatic Rust Guidelines - Libraries / UX Guidelines](https://microsoft.github.io/rust-guidelines/guidelines/libs/ux/index.html)
+- [Microsoft Pragmatic Rust Guidelines - Application Guidelines](https://microsoft.github.io/rust-guidelines/guidelines/apps/index.html)
 
 This reference includes only:
 
 - [Errors are Canonical Structs (`M-ERRORS-CANONICAL-STRUCTS`)](https://microsoft.github.io/rust-guidelines/guidelines/libs/ux/index.html#M-ERRORS-CANONICAL-STRUCTS)
+- [Application Error Handling (`M-APP-ERROR`)](https://microsoft.github.io/rust-guidelines/guidelines/apps/index.html#M-APP-ERROR)
 
 ## Errors are Canonical Structs (M-ERRORS-CANONICAL-STRUCTS)
 
@@ -27,3 +31,13 @@ Implementation checklist:
 - Implement `std::error::Error`.
 - Keep construction helpers private or crate-visible when callers should not create arbitrary invalid error states.
 - Consider a private `bail!` helper macro only when the crate creates many errors and the macro keeps construction consistent.
+
+## Application Error Handling (M-APP-ERROR)
+
+Application crates, binary crates, and internal crates used exclusively by one application may use application-level error crates such as `anyhow`, `eyre`, or similar instead of defining public error structs for every failure path.
+
+This is a relaxation of the library error guidance, not a replacement for it. Crates used by more than one crate should keep meaningful public error types that implement `std::error::Error`, `Display`, and the other traits callers need for interoperability.
+
+When an application chooses an application-level error crate, use one consistently across application-level code. Do not mix several erased app error types just because individual modules prefer different crates.
+
+Avoid erasing errors at boundaries where callers need to handle recoverable domain cases. If the caller can reasonably branch on a specific condition, keep that condition in a typed error, result enum, status type, or other explicit API contract before converting to the app-level error at the application boundary.

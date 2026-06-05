@@ -18,7 +18,7 @@ Load reference files only when they are relevant to the task. Keep each referenc
 - `references/lints.md`: compiler lint, Clippy lint, and lint override guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/construction.md`: builder and cascaded initialization guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/data.md`: generic data bounds, strong type family, public field tradeoffs, struct, enum, tuple, union, newtype, invariant, and builder guidance from the Rust API Guidelines, the PingCAP Rust Style Guide, and Microsoft Pragmatic Rust Guidelines.
-- `references/error-types.md`: canonical public error struct and upstream-cause guidance from Microsoft Pragmatic Rust Guidelines.
+- `references/error-types.md`: canonical public error struct, upstream-cause, and application-level error crate guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/external-types.md`: public API external type leakage guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/api-ergonomics.md`: flexible parameter trait and inherent functionality guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/magic-values.md`: documented magic value guidance from Microsoft Pragmatic Rust Guidelines.
