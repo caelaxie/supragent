@@ -1,4 +1,4 @@
 interface:
   display_name: "Model Detector"
-  short_description: "Find exact model IDs from runtime evidence"
-  default_prompt: "Use $model-detector to identify the exact model used by this run from first-party evidence."
+  short_description: "Find exact model IDs from extensible coding-agent runtime evidence"
+  default_prompt: "Use $model-detector to identify the exact model used by this coding-agent, Codex, OpenCode, or API run from first-party evidence."
