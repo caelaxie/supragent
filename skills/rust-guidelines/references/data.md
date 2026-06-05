@@ -4,11 +4,13 @@ Sources:
 
 - [Rust API Guidelines - Future Proofing](https://rust-lang.github.io/api-guidelines/future-proofing.html)
 - [PingCAP Rust Style Guide - Data](https://pingcap.github.io/style-guide/rust/data.html)
+- [Microsoft Pragmatic Rust Guidelines - Libraries / Resilience Guidelines](https://microsoft.github.io/rust-guidelines/guidelines/libs/resilience/index.html)
 
 This reference includes only:
 
 - [Rust API Guidelines - Future Proofing](https://rust-lang.github.io/api-guidelines/future-proofing.html)
 - [PingCAP Rust Data Guide](https://pingcap.github.io/style-guide/rust/data.html)
+- [Use the Proper Type Family (`M-STRONG-TYPES`)](https://microsoft.github.io/rust-guidelines/guidelines/libs/resilience/index.html#M-STRONG-TYPES)
 
 ## Generic Data Types
 
@@ -32,6 +34,16 @@ Use type aliases for common generic shapes when they improve readability, such a
 Use Rust types to make invalid states hard or impossible to represent. Prefer structs, enums, tuples, associated types, and newtypes that encode the valid state space directly instead of relying on comments or runtime checks spread through callers.
 
 Use the newtype pattern when two values share the same representation but carry different meaning or behavior. This is especially useful for IDs, units, domain values, and wrapper types that need controlled construction or trait implementations.
+
+## Strong Type Families
+
+Choose the standard or domain type that best represents the data as early as practical in the API flow. Stronger typing means more precise semantics, not blindly choosing the most restrictive wrapper.
+
+For OS paths, prefer path-like types such as `Path`, `PathBuf`, or `impl AsRef<Path>` over raw `str` or `String` when the API is actually path-oriented. Use the flexible parameter shape from the API ergonomics guidance at call boundaries, then store an owned representation such as `PathBuf` when the value must be retained.
+
+Use newtypes or domain structs when primitive values can be confused, need controlled construction, or carry distinct units or invariants.
+
+Do not replace ordinary public numeric parameters with specialized wrappers unless the wrapper is part of the domain contract. A conventional parameter such as `window_size()` should usually stay a plain numeric type rather than `NonZero<usize>`, `Saturating<usize>`, or a similar wrapper.
 
 ## Structs
 
