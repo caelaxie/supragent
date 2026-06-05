@@ -9,7 +9,7 @@ This reference includes only:
 
 ## Panic Means 'Stop the Program' (M-PANIC-IS-STOP)
 
-Treat panic as a request for immediate program termination. Do not use panics as recoverable errors, upstream error communication, or routine handling for expected runtime conditions.
+Treat panic as an unrecoverable failure at the current API boundary. A panic may unwind or abort depending on panic strategy and runtime context, but callers should not need panic recovery for ordinary control flow. Do not use panics as recoverable errors, upstream error communication, or routine handling for expected runtime conditions.
 
 Valid panic cases are tied to programming errors or explicit stop-the-program requests, such as:
 
@@ -20,7 +20,7 @@ Valid panic cases are tied to programming errors or explicit stop-the-program re
 
 ## Detected Programming Bugs are Panics, Not Errors (M-PANIC-ON-BUG)
 
-When code detects an unrecoverable programming bug, panic instead of introducing an error type that callers cannot meaningfully handle.
+When code detects an unrecoverable programming bug, panic instead of introducing an error type that callers cannot meaningfully handle. `catch_unwind` can isolate some unwinding panics at explicit boundaries, but it is not a substitute for normal `Result`-based error handling.
 
 Use `Result` for recoverable or user-driven failures, such as parsing invalid input. Use panic for contract violations and broken invariants when continuing would make the program state misleading or inconsistent.
 

@@ -27,8 +27,10 @@ Avoid collapsing unrelated operations into one global error type just to reduce 
 Implementation checklist:
 
 - Capture the backtrace where the error is created, including `From<UpstreamError>` conversions.
-- Implement `Display` with a summary, backtrace, and cause/context information.
-- Implement `std::error::Error`.
+- Implement `Display` as a concise description of the current error, including only caller-relevant local context.
+- Return the upstream cause from `std::error::Error::source()` when wrapping a lower-level error, unless deliberately rendering that cause in `Display` instead.
+- Do not duplicate the source chain or backtrace in normal `Display` output; keep that detail available through `Error::source()`, diagnostic accessors, `Debug`, or reporting layers.
+- Implement `std::error::Error`; prefer `Send + Sync` error types where practical.
 - Keep construction helpers private or crate-visible when callers should not create arbitrary invalid error states.
 - Consider a private `bail!` helper macro only when the crate creates many errors and the macro keeps construction consistent.
 

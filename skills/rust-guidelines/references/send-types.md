@@ -10,6 +10,8 @@ This reference includes only:
 
 Public types should generally be `Send` so they work with Tokio and runtime abstractions.
 
+The official Rust API Guidelines discuss `Send` and `Sync` together. This reference focuses on `Send` because async runtimes commonly require sendable futures, but shared public handles and references should also be checked for `Sync` where callers may use them across threads.
+
 Apply this especially to futures:
 
 - Explicit `Future` types should be asserted as `Send`.
@@ -31,6 +33,6 @@ fn assert_send<T: Send>(_: T) {}
 _ = assert_send(run_job());
 ```
 
-Most regular public types should also be `Send`, because holding a non-`Send` value such as `Rc` or `RefCell` across an `.await` can make the entire future `!Send`.
+Most regular public types should also be `Send`, because holding a non-`Send` value such as `Rc` across an `.await` can make the entire future `!Send`. Interior-mutability types also need care: for example, `RefCell<T>` can be `Send` when `T: Send`, but it is not `Sync`.
 
 Treat `!Send` as a deliberate compatibility exception. It can be acceptable for values that are only used instantaneously and have no reason to be held across `.await` boundaries, but document the intent and keep the API surface clear.

@@ -20,7 +20,7 @@ When an explicit public re-export of a crate-local item should appear as part of
 
 Apply this rule to public crate, module, and prelude surfaces. It does not automatically ban private `use foo::*` imports in tests, local modules, or narrow implementation scopes; evaluate those under ordinary readability and lint guidance.
 
-Glob re-exports can be acceptable for bounded technical forwarding, such as platform or HAL modules selected by `cfg`, when every forwarded module is intentionally part of the public surface:
+Glob re-exports can be acceptable for bounded technical forwarding, such as crate-local platform or HAL modules selected by mutually exclusive `cfg` gates, when every forwarded module is intentionally part of the public surface:
 
 ```rust
 #[cfg(target_os = "windows")]
@@ -30,4 +30,4 @@ pub use windows::*;
 pub use linux::*;
 ```
 
-When using this exception, keep the forwarded modules small and deliberate so the public API remains reviewable.
+When using this exception, keep the forwarded modules small and deliberate so the public API remains reviewable. Do not use this exception for third-party crates by default.

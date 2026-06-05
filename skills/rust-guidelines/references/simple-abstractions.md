@@ -43,7 +43,7 @@ When a trait object or shared dependency is needed, prefer a named wrapper type 
 
 ## Prefer Types over Generics, Generics over Dyn Traits (M-DI-HIERARCHY)
 
-For async dependencies and service composition, prefer concrete types first. If users genuinely need to supply their own behavior, prefer narrow generic traits. Use `dyn Trait` only after concrete types or generics would create worse API nesting or lock in the wrong model.
+For crate-owned async dependencies and service composition, prefer concrete types first when there is one normal implementation. If users genuinely need to supply their own behavior, prefer narrow generic traits. Use `dyn Trait` only after concrete types or generics would create worse API nesting or lock in the wrong model.
 
 Escalation order:
 
@@ -55,7 +55,7 @@ Escalation order:
 
 Avoid porting interface-heavy designs directly into Rust. A broad async trait plus `Rc<dyn Trait>`, `Arc<dyn Trait>`, or similar public wrapper often creates object-safety, async, composition, and API ergonomics problems.
 
-Keep traits focused on the operation being consumed. If a larger abstraction is needed, compose it from narrower subtraits rather than starting with one broad dependency trait.
+Keep traits focused on the operation being consumed. If a larger abstraction is needed, compose it from narrower subtraits rather than starting with one broad dependency trait. For ordinary input parameters, still prefer generics when they minimize assumptions without making the public type surface infectious.
 
 ## Services are Clone (M-SERVICES-CLONE)
 

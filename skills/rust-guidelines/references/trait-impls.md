@@ -86,7 +86,7 @@ When returning iterator adapters from public APIs, avoid exposing brittle concre
 
 ## Drop and Unsafe Impls
 
-`Drop` implementations must not panic, fail, or block. Be careful with implicit panics inside `drop`, such as indexing or unchecked assumptions that can fail.
+`Drop` implementations should not intentionally panic or perform fallible or blocking teardown as their only cleanup path. Be careful with implicit panics inside `drop`, such as indexing or unchecked assumptions that can fail.
 
 If shutdown can fail or block, expose an explicit method such as `close()` or `shutdown()` that callers can invoke before drop. That method can return a `Result`; `Drop` should remain best-effort and non-panicking.
 

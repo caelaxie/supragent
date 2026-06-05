@@ -43,7 +43,7 @@ For OS paths, prefer path-like types such as `Path`, `PathBuf`, or `impl AsRef<P
 
 Use newtypes or domain structs when primitive values can be confused, need controlled construction, or carry distinct units or invariants.
 
-Do not replace ordinary public numeric parameters with specialized wrappers unless the wrapper is part of the domain contract. A conventional parameter such as `window_size()` should usually stay a plain numeric type rather than `NonZero<usize>`, `Saturating<usize>`, or a similar wrapper.
+Do not replace ordinary public numeric parameters with specialized wrappers unless the wrapper expresses the API contract. A conventional count or size parameter can stay a plain `usize`; use `NonZeroUsize` when zero is invalid and static enforcement is worth the caller burden, and use `Saturating<usize>` only when saturating arithmetic is part of the public semantics.
 
 ## Structs
 

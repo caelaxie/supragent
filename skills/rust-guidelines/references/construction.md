@@ -15,7 +15,7 @@ Builder conventions:
 
 - Name the builder after the target type, such as `FooBuilder`.
 - Expose the builder from the target type with `Foo::builder(...)`.
-- Do not expose a public `FooBuilder::new()` when `Foo::builder(...)` is the intended entry point.
+- Avoid exposing a competing public `FooBuilder::new()` when `Foo::builder(...)` is the intended entry point. A builder constructor can still be appropriate when it is the clearest API or matches established crate conventions.
 - Make setter methods chainable.
 - Name setter methods after the value they set, such as `timeout(...)`, not `set_timeout(...)`.
 - End construction with `.build()`.
