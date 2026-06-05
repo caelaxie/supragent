@@ -16,6 +16,8 @@ Prefer explicit public re-exports:
 pub use foo::{A, B, C};
 ```
 
+When an explicit public re-export of a crate-local item should appear as part of the current module's rustdoc surface, pair it with `#[doc(inline)]`; see `references/documentation.md`. This changes documentation presentation only and does not make glob re-exports safer.
+
 Apply this rule to public crate, module, and prelude surfaces. It does not automatically ban private `use foo::*` imports in tests, local modules, or narrow implementation scopes; evaluate those under ordinary readability and lint guidance.
 
 Glob re-exports can be acceptable for bounded technical forwarding, such as platform or HAL modules selected by `cfg`, when every forwarded module is intentionally part of the public surface:
