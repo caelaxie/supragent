@@ -28,7 +28,7 @@ Use the same commands without `--global` when you want a local install.
 | `d2lang` | Supports D2 diagram creation, refactoring, validation, and export workflows. |
 | `hermes-plugin-development` | Guides Hermes plugin authoring and validation across manifests, registration, tools, hooks, and enablement. |
 | `modified-karpathy-guidelines` | Provides coding guidance to reduce overcomplication and improve code quality. |
-| `model-detector` | Finds exact model IDs for Codex, OpenCode, APIs, and extensible coding-agent runners from first-party runtime evidence, config, logs, and request or response fields. |
+| `model-detector` | Finds exact model IDs for Oh My Pi (OMP), Codex, OpenCode, APIs, and extensible coding-agent runners from first-party runtime evidence, config, logs, and request or response fields. |
 | `pr` | Fallback GitHub pull-request workflow when a project has no PR-specific guidance. |
 | `review-team` | Coordinates parallel review roles for evidence-based, severity-ranked findings and fixes. |
 | `rust-guidelines` | Rust-wide coding, review, test, Cargo, API, async, unsafe, FFI, and performance guidance. |

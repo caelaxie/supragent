@@ -1,6 +1,6 @@
 ---
 name: model-detector
-description: Detect exact model identifiers used by Codex, OpenCode, coding-agent runners, CLI invocations, API requests, or application integrations from first-party metadata, config, logs, traces, and request or response evidence. Use concise runner-agnostic workflow here, then load runner-specific references as needed.
+description: Detect exact model identifiers used by Oh My Pi (OMP), Codex, OpenCode, coding-agent runners, CLI invocations, API requests, or application integrations from first-party metadata, config, logs, traces, and request or response evidence. Use concise runner-agnostic workflow here, then load runner-specific references as needed.
 ---
 
 # Model Detector
@@ -12,19 +12,21 @@ Determine the exact model identifier for a target run or integration from eviden
 ## Target First
 
 Before investigating, name the target:
+- Current Oh My Pi (OMP) session, turn, leaf entry, role (default/smol/slow/plan/designer/commit/task/vision), or task subagent.
 - Current Codex thread or turn.
 - OpenCode session, message, agent, or subagent.
 - Another coding-agent runner, CLI, desktop, IDE, session, job, or subagent.
 - OpenAI or compatible API request.
 - Application, gateway, router, or third-party client.
 
-If the user does not specify a target, default to the current Codex thread and say that this scope is assumed.
+If the user does not specify a target, default to the current Oh My Pi (OMP) session/turn and say that this scope is assumed.
 
 ## Load References
 
 - Always follow the common workflow in this file.
 - If the target is a coding-agent runner, load `references/runner-adapter-contract.md`.
 - If the target runner is known and `references/<runner>.md` exists, load that file too.
+- If the target is Oh My Pi (OMP) or the current coding-agent harness, load `references/omp.md` (in addition to the adapter contract).
 - If the target runner has no reference yet, use the adapter contract and report which metadata, config, log, and request surfaces were checked.
 - When adding support for a new runner, follow `references/adding-a-runner.md`.
 - When current library, API, or tool behavior is needed to interpret model fields, use Context7 or first-party docs before relying on memory.
