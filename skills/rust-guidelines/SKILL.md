@@ -9,7 +9,7 @@ description: Rust project engineering guidelines. Always use in Rust projects an
 
 Use this skill as the entry point for Rust project work.
 
-This scaffold intentionally does not define Rust-specific rules yet. Add detailed material later as focused files under `references/`.
+Detailed Rust guidance lives in focused files under `references/`. Load only the references relevant to the current Rust task.
 
 ## References
 
