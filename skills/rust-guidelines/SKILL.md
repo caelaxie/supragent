@@ -27,6 +27,7 @@ Load reference files only when they are relevant to the task. Keep each referenc
 - `references/magic-values.md`: documented magic value guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/naming.md`: concise type and trait naming, Rust casing, constructor, conversion, getter, iterator, and ownership-variant naming guidance from Microsoft Pragmatic Rust Guidelines, the Rust API Guidelines, and the PingCAP Rust Style Guide.
 - `references/panic-handling.md`: panic versus recoverable error guidance from Microsoft Pragmatic Rust Guidelines.
+- `references/performance.md`: benchmark-first optimization, allocation, copying, visible expensive behavior, synchronization cost, concurrency, and input-size guidance from the PingCAP Rust Style Guide and Rust standard library documentation.
 - `references/public-traits.md`: public `Debug` and `Display` implementation guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/reexports.md`: public glob re-export and explicit re-export guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/regular-functions.md`: regular function versus associated function guidance from Microsoft Pragmatic Rust Guidelines.
