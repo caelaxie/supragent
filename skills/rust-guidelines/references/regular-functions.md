@@ -12,9 +12,11 @@ Use associated functions primarily for instance creation and other operations th
 
 Keep these in an `impl Type` block:
 
-- Constructors such as `new`, `with_capacity`, `from_*`, or domain-specific constructors such as `open` and `connect`.
+- Constructors such as `new`, `with_capacity`, `open`, or `connect`.
 - Methods with an actual receiver, such as `&self`, `&mut self`, or `self`.
 - Associated trait functions required by a trait contract.
+
+For conversions, prefer `From<T>` and `TryFrom<T>` when those standard traits fit. Use inherent `from_*` constructors only when the conversion needs extra arguments, has domain semantics that a trait would obscure, or otherwise cannot be expressed well as a standard conversion trait.
 
 Prefer a regular module function when the operation does not have a clear receiver and does not directly construct the type. This keeps call sites idiomatic and avoids making a type look responsible for unrelated computation.
 

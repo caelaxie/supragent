@@ -48,6 +48,8 @@ Common candidates include:
 - `Display` only when there is a stable human-readable representation.
 - `Default` when there is a clear, unsurprising default value.
 
+Use `Debug` for developer diagnostics and logs, not as user-facing output. Use `Display` or structured rendering for text that users, API clients, or error messages are expected to read.
+
 Prefer `derive` over manual impls when the derived behavior is correct. Use manual impls when the trait contract needs custom semantics, redaction, ordering, or validation.
 
 `Default` and a zero-argument `new()` may coexist. Implement `Default` when the default value is meaningful, and keep `new()` when it improves discoverability or matches constructor conventions.
@@ -64,6 +66,8 @@ Prefer standard conversion traits where they fit:
 Use `Borrow<T>` only when the borrowed and owned forms have equivalent `Eq`, `Ord`, and `Hash` behavior. `AsRef<T>` is less restrictive and is often the better fit for simple borrowed views.
 
 If `AsMut<T>` is implemented, `AsRef<T>` should usually be implemented as well.
+
+Smart-pointer-like types that implement `Deref` should usually also provide an explicit `AsRef<T>` or `Borrow<T>` conversion when that conversion is semantically valid. Implement `ToOwned` only when there is a natural owned form of the borrowed value.
 
 ## Deref and Operators
 

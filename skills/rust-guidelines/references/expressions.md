@@ -46,6 +46,14 @@ if should_retry {
 }
 ```
 
+Use parentheses around mixed-operator expressions when precedence is not immediately obvious. Avoid relying on readers to remember precedence details in dense boolean, arithmetic, or bitwise expressions.
+
+Use field initializer shorthand when the field and local variable have the same name:
+
+```rust
+Foo { x, y }
+```
+
 ## Shadowing and Mutability
 
 Use shadowing when each binding represents the same logical value at a new stage, such as parsing, validating, wrapping, or narrowing a type. Avoid reusing the same name for unrelated values in the same scope.
@@ -122,6 +130,8 @@ Use `Option` and `Result` combinators when they keep the happy path and error pa
 Avoid destructuring every public struct field in a pattern unless that complete shape is part of the local requirement. Use `..` for ignored fields so adding a field does not break code unnecessarily.
 
 Prefer explicit enum patterns over a wildcard when adding a new variant should force a compiler error. Use `_` only when all remaining cases are genuinely handled the same way.
+
+When a pattern has several ignored fields or elements and the syntax supports it, prefer one `..` over repeated `_` placeholders.
 
 Let match ergonomics handle borrowing when possible. Reach for explicit `ref` and `ref mut` patterns only when they make ownership or borrowing more understandable.
 

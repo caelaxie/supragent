@@ -49,7 +49,9 @@ Do not duplicate every item-level doc in the module docs. Put cross-item relatio
 
 ## Documentation Has Canonical Sections (M-CANONICAL-DOCS)
 
-Public library item documentation should start with a summary sentence. Extended documentation and examples are strongly encouraged, especially for APIs whose behavior, failure modes, or usage patterns are not obvious from the signature alone.
+Public library item documentation should start with a summary sentence. Representative examples and extended documentation are strongly encouraged, especially for APIs whose behavior, failure modes, or usage patterns are not obvious from the signature alone.
+
+Public items should usually include a representative rustdoc example, or link to an applicable example elsewhere. Apply this within reason: examples should explain why an API is useful or how pieces fit together, not mechanically demonstrate obvious syntax.
 
 Use the standard rustdoc sections that apply to the API:
 

@@ -11,11 +11,13 @@ Sources:
 This reference includes only:
 
 - Function and method placement.
+- `Self` versus explicit type names.
 - Constructor shape.
 - Parameter ownership and borrowing.
 - Return ownership.
 - Argument meaning and validation.
 - Generic parameter tradeoffs.
+- Trait API shape and associated type tradeoffs.
 - Inline annotation guidance.
 
 ## Source Precedence
@@ -36,6 +38,8 @@ Use associated functions for construction and operations that are logically part
 
 Private static helpers usually do not need to live in an `impl` block. Modules are the ordinary privacy boundary in Rust, so a private free function is often clearer than `Type::private_helper(...)`.
 
+Inside an `impl`, use `Self` when the meaning is the current implementing type, such as same-type parameters or private associated calls. Use the concrete type name when the signature needs to name a specific type or when explicitness makes public API docs clearer. If the distinction does not matter, prefer readability over mechanical consistency.
+
 ## Constructors
 
 Use inherent constructors for ordinary construction:
@@ -46,6 +50,8 @@ Use inherent constructors for ordinary construction:
 - Use a builder when construction has many optional settings, several construction permutations, or long positional argument lists.
 
 `Default` and a zero-argument `new()` may coexist when both help callers. Avoid treating either one as mandatory boilerplate.
+
+Do not add inherent `from_*` or `into_*` constructors for ordinary conversions that fit standard traits. Implement `From<T>` for infallible conversions and `TryFrom<T>` for fallible conversions. Use inherent conversion methods only when a standard trait cannot express the operation clearly, such as when extra arguments, lossy domain semantics, or a named view are required.
 
 ## Parameter Ownership
 
@@ -85,6 +91,8 @@ Use generic parameters and `impl Trait` when they give callers meaningful flexib
 
 For single, simple bounds, prefer `impl Trait` in parameter position. For complex bounds, repeated bounds, associated type constraints, or function traits, prefer explicit type parameters with a `where` clause.
 
+Use lifetime elision where current Rust elision rules make the relationship clear. Name lifetimes when several inputs or return values need disambiguation, or when a named lifetime communicates an API constraint.
+
 Choose the closure trait that matches how the function uses the callback:
 
 - Use `Fn` when the function only calls the callback without mutable capture or consumption.
@@ -92,3 +100,13 @@ Choose the closure trait that matches how the function uses the callback:
 - Use `FnOnce` when the function consumes the callback or calls it at most once in a way that may consume captured values.
 
 More than a few generic parameters is a design smell. Consider splitting the function, adding a small parameter object, moving behavior into a trait with associated types, or naming an intermediate type.
+
+## Trait API Shape
+
+Use traits for reusable behavior that callers or downstream crates may need to abstract over. Use inherent methods for operations that are specific to the concrete type and should be discoverable without importing a trait.
+
+Keep traits small and focused on one aspect of behavior. If a larger API needs both object-safe core behavior and convenience methods, consider an extension trait such as `FooExt` for the provided or expanded behavior.
+
+Group required trait methods before provided methods. This keeps implementor obligations clear before readers reach optional convenience behavior.
+
+Use generic type parameters on traits when the caller chooses the type. Use associated types when each implementor chooses the type. A default associated type can make later trait evolution less disruptive, but do not use defaults to hide an important API choice from implementors or callers.

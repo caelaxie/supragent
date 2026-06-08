@@ -22,7 +22,7 @@ Use `unsafe` only when there is a concrete reason that safe Rust cannot satisfy:
 
 Do not use ad-hoc `unsafe` as a shortcut inside otherwise unrelated code. In particular, do not use `unsafe` to make enum casts shorter with `transmute`, bypass `Send` or `Sync` requirements, or evade lifetime rules.
 
-Every unsafe block, unsafe function, and unsafe impl must have plain-text safety reasoning close to the code. The reasoning should explain:
+Every unsafe block, unsafe function, unsafe trait, and unsafe impl must have plain-text safety reasoning close to the code. The reasoning should explain:
 
 - Which invariants must hold.
 - Who is responsible for upholding them.

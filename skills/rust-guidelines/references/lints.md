@@ -63,6 +63,8 @@ unused_result_ok = "warn"
 literal_string_with_formatting_args = "allow"
 ```
 
+Keep this list aligned with current Clippy lint names. The Microsoft source currently names `string_to_string`; on current Clippy, related string-conversion coverage is exposed through lints such as `implicit_clone`, `str_to_string`, and `inefficient_to_string`. Use the exact names accepted by the active toolchain.
+
 ## Lint Overrides Should Use `#[expect]` (M-LINT-OVERRIDE-EXPECT)
 
 Use `#[expect]` instead of `#[allow]` when overriding project-wide lints for a submodule or item. Include a `reason`.

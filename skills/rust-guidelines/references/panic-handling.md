@@ -14,7 +14,7 @@ Treat panic as an unrecoverable failure at the current API boundary. A panic may
 Valid panic cases are tied to programming errors or explicit stop-the-program requests, such as:
 
 - An impossible internal invariant was violated.
-- A const-context operation cannot return a recoverable error.
+- A const-context invariant check intentionally fails at compile time when returning `Result` is not the chosen API shape.
 - The API intentionally exposes an `unwrap`-style operation.
 - A poisoned lock indicates another thread has already panicked.
 
@@ -23,5 +23,7 @@ Valid panic cases are tied to programming errors or explicit stop-the-program re
 When code detects an unrecoverable programming bug, panic instead of introducing an error type that callers cannot meaningfully handle. `catch_unwind` can isolate some unwinding panics at explicit boundaries, but it is not a substitute for normal `Result`-based error handling.
 
 Use `Result` for recoverable or user-driven failures, such as parsing invalid input. Use panic for contract violations and broken invariants when continuing would make the program state misleading or inconsistent.
+
+APIs are not required to add expensive or impossible checks solely to detect every contract violation. If a check is omitted, behavior may be unspecified at the semantic level, but it must remain defined and sound Rust behavior.
 
 When the boundary is unclear, prefer designs that are correct by construction. Use the type system to make invalid states unrepresentable where practical, and reserve runtime panics for the cases that remain true programming errors.
