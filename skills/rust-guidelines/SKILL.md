@@ -1,15 +1,38 @@
 ---
 name: rust-guidelines
-description: Rust project engineering guidelines. Always use in Rust projects and worktrees, including Cargo crates and workspaces, when writing, reviewing, refactoring, debugging, testing, documenting, or configuring Rust code; editing Cargo.toml, Cargo.lock, rustfmt, clippy, rust-toolchain, build.rs, benches, examples, tests, or CI for Rust; designing Rust APIs, error handling, async/concurrency, ownership/lifetimes, unsafe code, FFI, performance-sensitive code, or crate/module boundaries.
+description: Rust project engineering guidelines. Use in Rust projects and worktrees when writing, reviewing, refactoring, debugging, testing, documenting, or configuring Rust code. Apply the focused local references for covered topics, and use current official Rust docs when a task needs behavior or subdomain detail not covered here.
 ---
 
 # Rust Guidelines
 
 ## Purpose
 
-Use this skill as the entry point for Rust project work.
+Use this skill as the entry point for Rust project work. It provides focused repo-local policy for covered topics; it is not a complete Rust encyclopedia.
 
-Detailed Rust guidance lives in focused files under `references/`. Load only the references relevant to the current Rust task.
+Detailed Rust guidance lives in focused files under `references/`. Load only the references relevant to the current Rust task. When the current compiler, standard library, Cargo, Clippy, async runtime, FFI, or other external behavior matters and no local reference covers it, use Context7 or first-party docs before relying on memory.
+
+## Work Loop
+
+1. Identify the Rust scope.
+- Inspect the relevant `Cargo.toml`, workspace layout, toolchain, rustfmt/clippy config, and existing test or CI commands before changing code.
+- If the task is review-only, identify which crate, module, API boundary, or diff is being reviewed.
+
+2. Load only relevant references.
+- Use the reference index below to pick the smallest matching set.
+- If several references overlap, prefer the most specific file for the decision and use broader files only for context.
+
+3. Preserve local design.
+- Follow existing crate style, public API compatibility, error conventions, feature flags, module boundaries, and test layout unless the task requires a deliberate change.
+- Prefer small, typed, maintainable Rust over broad abstractions or dependency additions.
+
+4. Test behavior proportionally.
+- Add a regression test when fixing a bug and the project shape makes that practical.
+- For API, unsafe, concurrency, or error-handling changes, include compile-time assertions, unit tests, integration tests, Miri, or focused examples when they are the right proof.
+
+5. Verify before reporting.
+- Run repo-specific checks when documented.
+- Otherwise choose the narrowest meaningful checks from `cargo fmt --check`, `cargo clippy --all-targets --all-features`, and `cargo test --all-features`.
+- If a check is too broad, unavailable, or irrelevant to the touched crate, run the closest targeted command and report the unverified surface.
 
 ## References
 

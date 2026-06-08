@@ -31,6 +31,6 @@ Use the same commands without `--global` when you want a local install.
 | `model-detector` | Finds exact model IDs for Oh My Pi (OMP), Codex, OpenCode, APIs, and extensible coding-agent runners from first-party runtime evidence, config, logs, and request or response fields. |
 | `pr` | Fallback GitHub pull-request workflow when a project has no PR-specific guidance. |
 | `review-team` | Coordinates parallel review roles for evidence-based, severity-ranked findings and fixes. |
-| `rust-guidelines` | Rust-wide coding, review, test, Cargo, API, async, unsafe, FFI, and performance guidance. |
+| `rust-guidelines` | Rust coding, review, test, Cargo, and API guidance with focused local references and official-doc fallback for uncovered details. |
 | `sql-antipatterns` | Audits PostgreSQL designs for anti-patterns and recommends constraint-first alternatives. |
 | `stash-override-rules` | Helps author, merge, and validate Stash VPN override rules and routing behavior. |

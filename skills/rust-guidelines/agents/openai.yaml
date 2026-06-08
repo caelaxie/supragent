@@ -1,4 +1,4 @@
 interface:
   display_name: "Rust Guidelines"
-  short_description: "Rust-wide coding, review, test, Cargo, and API guidance."
-  default_prompt: "Use rust-guidelines for any Rust project work, including code changes, reviews, tests, Cargo configuration, APIs, async, unsafe, FFI, and performance."
+  short_description: "Rust coding, review, test, Cargo, and API guidance with focused local references."
+  default_prompt: "Use rust-guidelines for Rust project work. Apply the focused local references for covered topics, inspect the crate/toolchain first, and use current official Rust docs when a task needs behavior or subdomain detail not covered here."
