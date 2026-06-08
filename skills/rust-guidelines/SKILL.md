@@ -20,6 +20,7 @@ Load reference files only when they are relevant to the task. Keep each referenc
 - `references/data.md`: generic data bounds, strong type family, public field tradeoffs, struct, enum, tuple, union, newtype, invariant, and builder guidance from the Rust API Guidelines, the PingCAP Rust Style Guide, and Microsoft Pragmatic Rust Guidelines.
 - `references/documentation.md`: rustdoc summary sentence, module documentation, re-export presentation, public examples, and canonical doc section guidance from Microsoft Pragmatic Rust Guidelines and the Rust API Guidelines.
 - `references/error-types.md`: canonical public error struct, upstream-cause, and application-level error crate guidance from Microsoft Pragmatic Rust Guidelines.
+- `references/expressions.md`: local expression shape, shadowing, discarded results, iteration, match and condition readability, and assertion and arithmetic guidance from the Rust Reference, Clippy, and the PingCAP Rust Style Guide.
 - `references/external-types.md`: public API external type leakage guidance from Microsoft Pragmatic Rust Guidelines.
 - `references/functions.md`: function and method placement, constructor shape, parameter ownership, return ownership, argument meaning, generic parameters, and inline annotation guidance from the Rust API Guidelines and the PingCAP Rust Style Guide.
 - `references/api-ergonomics.md`: flexible parameter trait and inherent functionality guidance from Microsoft Pragmatic Rust Guidelines.
