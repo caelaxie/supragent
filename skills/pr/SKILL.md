@@ -7,7 +7,7 @@ description: Fallback GitHub pull-request creation/update workflow using the gh 
 
 ## Goal
 
-When the current project has no PR-specific guidance, create or update a PR with a base branch, title, and body that match the analyzed diff.
+When the current project has no PR-specific guidance, create or update a PR with a base branch, title, body, and default self-assignment when the PR has no assignee.
 
 ## Fallback Scope
 
@@ -22,7 +22,7 @@ Do not treat the mere existence of a file as project PR guidance; defer only whe
 1. Resolve PR state and base branch.
 - Run:
 ```bash
-gh pr view --json number,baseRefName,title,body 2>/dev/null
+gh pr view --json number,baseRefName,title,body,assignees 2>/dev/null
 gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null || echo main
 ```
 - Base precedence:
@@ -34,7 +34,7 @@ gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null |
 ```bash
 git log --oneline BASE..HEAD
 git diff --stat BASE...HEAD
-gh pr view --json number,title,body,baseRefName 2>/dev/null
+gh pr view --json number,title,body,baseRefName,assignees 2>/dev/null
 ```
 
 3. Inspect changes.
@@ -48,14 +48,21 @@ gh pr view --json number,title,body,baseRefName 2>/dev/null
   - `## Key Changes` (5-8 concrete bullets with file:line refs)
 
 5. Create or update.
+- Default assignment:
+  - New PRs: assign yourself with `--assignee "@me"`.
+  - Existing PRs: check `assignees`; if none are present, add yourself with `--add-assignee "@me"`.
 - Create:
 ```bash
 git push -u origin HEAD
-gh pr create --base "<BASE>" --title "<title>" --body "<body>"
+gh pr create --base "<BASE>" --title "<title>" --body "<body>" --assignee "@me"
 ```
 - Update:
 ```bash
-gh pr edit --base "<BASE>" --title "<title>" --body "<body>"
+ASSIGNEE_ARGS=()
+if [ "$(gh pr view --json assignees --jq '.assignees | length')" = "0" ]; then
+  ASSIGNEE_ARGS=(--add-assignee "@me")
+fi
+gh pr edit --base "<BASE>" --title "<title>" --body "<body>" "${ASSIGNEE_ARGS[@]}"
 ```
 
 ## Guardrails
