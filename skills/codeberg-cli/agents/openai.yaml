@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codeberg CLI Helper"
+  short_description: "Use cb for Codeberg/Forgejo repos, issues, and PRs"
+  default_prompt: "Use $codeberg-cli to authenticate with Codeberg, resolve the target repo, and run the needed cb issue/PR/repo/release/actions commands non-interactively."

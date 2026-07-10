@@ -24,6 +24,7 @@ Use the same commands without `--global` when you want a local install.
 |---|---|
 | `1password-cli` | Secure secret access via 1Password CLI (`op`) for reading, injecting, and templating secrets. |
 | `bitwarden-cli` | Bitwarden CLI (`bw`) workflows for vault auth, session management, and secret retrieval. |
+| `codeberg-cli` | Codeberg/Forgejo CLI (`cb`) workflows for auth, repos, issues, PRs, releases, and Actions. |
 | `commit` | Fallback commit workflow using conventional messages when a project has no commit-specific guidance. |
 | `d2lang` | Supports D2 diagram creation, refactoring, validation, and export workflows. |
 | `explain-diff-html` | Geoffrey Litt's skill for generating rich, interactive HTML explanations of code changes, diffs, branches, and PRs. |
