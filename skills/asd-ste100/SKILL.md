@@ -5,7 +5,7 @@ description: Apply ASD-STE100 Simplified Technical English principles to all pro
 
 # ASD-STE100 Writing Style
 
-This skill adapts ASD-STE100 Simplified Technical English for software engineering. It keeps the ambiguity-reduction rules and drops the aerospace-specific parts (controlled dictionary, warning hierarchies, noun categories). Source code identifiers and API names take the role of approved technical terms: they are always correct as written.
+This skill adapts ASD-STE100 Issue 9 (2025) for software engineering. It keeps the ambiguity-reduction rules and drops the aerospace-specific parts (controlled dictionary, warning hierarchies, technical-noun categories). Source code identifiers and API names take the role of approved technical terms: they are always correct as written.
 
 ## Scope
 
@@ -34,7 +34,7 @@ Renaming an identifier or softening a term in a quoted spec creates a mismatch b
 6. Never omit articles ("a", "an", "the") or demonstratives ("this", "these"). Non-native readers need them to parse noun boundaries.
 7. Never use vague words. "Various", "appropriate", "several", and "multiple" commit to nothing. Give the number, the list, or the criteria.
 8. Never join more than three nouns into a cluster. "User session token refresh logic" forces the reader to guess the grouping. Rewrite with prepositions: "the logic that refreshes user session tokens". Hyphenate two-noun compounds only when the grouping is unambiguous.
-9. Use a pronoun only when its antecedent is unmistakable. If "it" or "this" can point to two nouns, repeat the noun. A wrong antecedent reads as confident, not as ambiguous.
+9. Use a pronoun only when its antecedent is unmistakable. If "it" or "this" can point to two nouns, repeat the noun — a wrong antecedent reads as confident, not as ambiguous. Use "they" or repeat the noun; gendered pronouns are not permitted in STE.
 
 Approved verbs: "use", "run", "create", "change", "remove", "check", "show", "start", "stop".
 
@@ -50,21 +50,23 @@ Replacements:
 
 10. Write short sentences. Maximum 20 words for instructions, 25 for descriptions. Long sentences hide the verb and the condition.
 11. Do not use contractions or omit words to fit the limit. Split the sentence instead.
-12. Use simple tenses. Simple present for procedures and descriptions, simple past for completed events, simple future only for real future results. Never use "will" to make an instruction formal: "Remove the panel", not "The operator will remove the panel". Complex tenses hide the sequence of actions.
+12. Use only the infinitive, the imperative, the simple present, the simple past, the simple future, and the past participle as an adjective. Never use perfect or progressive forms ("has been removed", "is running") — they hide when the action happens. Never use "will" to make an instruction formal: "Remove the panel", not "The operator will remove the panel".
 13. Use active voice in instructions. "The script deletes the cache", not "The cache is deleted by the script". Active voice names who does the action.
-14. In descriptions, use the passive voice only when the agent is unknown or irrelevant. "The record is locked during a migration" is acceptable; never use the passive to hide who made a decision.
+14. In descriptions, use the passive voice only when the agent is unknown. If the agent is the reader, use "you"; if the agent is your team or organization, use "we". Never use the passive to hide who made a decision.
+15. Never use semicolons. Split the sentence into two, or use a period. Semicolons hide the relationship between clauses from non-native readers.
 
 ## Instructions
 
-15. Use direct instructions. "Run the test", not "You should run the test" or "It is recommended to run the test".
-16. Use "must" for mandatory conditions and "should" only for real recommendations. "Should" reads as advice; a mandatory step written with "should" will be skipped.
-17. Write one instruction per sentence, unless the actions must occur at the same time. Sequenced steps in one sentence force the reader to re-parse to find the order.
-18. Warn before a destructive step. State the risk first, then the instruction, then the consequence. "This command deletes all local data. Run `git clean -fdx` only after you commit your work. Uncommitted changes are not recoverable." A warning after the instruction arrives too late.
+16. Use direct instructions. "Run the test", not "You should run the test" or "It is recommended to run the test".
+17. Do not put "must" before an imperative — the imperative already makes the step mandatory. Use "must" only for an important condition or a safety-critical step. Never use "should" for a mandatory step: "should" reads as advice, and the reader will skip the step.
+18. Write one instruction per sentence, unless the actions must occur at the same time. Sequenced steps in one sentence force the reader to re-parse to find the order.
+19. Warn before a destructive step. State the condition first, then the command, then the consequence. "This command deletes all local data. Run `git clean -fdx` only after you commit your work. Uncommitted changes are not recoverable." A warning after the instruction arrives too late.
 
 ## Paragraphs
 
-19. Keep one topic in each paragraph. Mixed topics force the reader to re-read to find which sentence belongs to which subject.
-20. Keep paragraphs to six sentences or fewer. Move additional detail to a new paragraph or a list.
+20. Keep one topic in each paragraph. Mixed topics force the reader to re-read to find which sentence belongs to which subject.
+21. Keep paragraphs to six sentences or fewer. Move additional detail to a new paragraph or a list.
+22. Use a vertical list for complex content — items, options, or steps that one sentence would bury.
 
 ## Code Comments
 
@@ -94,8 +96,9 @@ Read the final text and answer each question. Fix every "no".
 - Does every pronoun have one unmistakable antecedent?
 - Does every action use a verb, not a noun form?
 - Did I remove every gerund that is not a technical noun?
-- Did I use simple tenses, without "will" in instructions?
-- Does every mandatory condition use "must"?
+- Did I use only simple tenses, without perfect or progressive forms?
+- Did I remove every semicolon?
+- Did I keep "must" only for important conditions, and "should" only for real recommendations?
 - Does every noun cluster have three nouns or fewer?
 - Did I replace every vague word with a number, a list, or criteria?
 - Is every instruction imperative, active, and one action per sentence?
