@@ -22,6 +22,7 @@ Use the same commands without `--global` when you want a local install.
 
 | Skill | Description |
 |---|---|
+| `asd-ste100` | Applies ASD-STE100 Simplified Technical English principles to documentation, commit messages, PR descriptions, and code comments. |
 | `1password-cli` | Secure secret access via 1Password CLI (`op`) for reading, injecting, and templating secrets. |
 | `bitwarden-cli` | Bitwarden CLI (`bw`) workflows for vault auth, session management, and secret retrieval. |
 | `codeberg-cli` | Codeberg/Forgejo CLI (`cb`) workflows for auth, repos, issues, PRs, releases, and Actions. |
