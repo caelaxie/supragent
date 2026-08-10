@@ -124,22 +124,29 @@ list_output="$(npx --yes skills add . --list 2>&1)"
 printf '%s\n' "$list_output"
 
 # Parse discovered skill names from CLI list output.
-# List mode prints each skill name on its own line (often with box-drawing prefixes),
-# followed by a longer description line. Prefer the "Found N skills" count plus
-# name lines that match our on-disk skill folders.
+# List mode prints each skill name on its own line (often with box-drawing prefixes
+# and, under CI, ANSI color codes), followed by a longer description line.
+# Strip CSI/OSC escapes first so slug matching is stable in GitHub Actions.
+strip_ansi() {
+  # CSI sequences (e.g. \x1b[36m, \x1b[0m, \x1b[?25h) and OSC sequences.
+  sed -E $'s/\x1B\\[[0-9;?]*[A-Za-z]//g; s/\x1B\\][^\x07]*(\x07|\x1B\\\\)//g'
+}
+
 found_count="$(
   printf '%s\n' "$list_output" \
+    | strip_ansi \
     | sed -nE 's/.*Found ([0-9]+) skills.*/\1/p' \
     | head -1
 )"
 
 mapfile -t discovered < <(
   printf '%s\n' "$list_output" \
+    | strip_ansi \
     | while IFS= read -r line; do
-        # Strip common box-drawing / whitespace decoration, then keep pure skill slugs.
+        # Drop leading decoration (box-drawing, spaces, symbols), keep pure skill slugs.
         cleaned="$(
           printf '%s\n' "$line" \
-            | sed -E 's/^[[:space:]│┃┆┊┌┐└┘├┤┬┴┼─━|]+//; s/[[:space:]]+$//'
+            | sed -E 's/^[^a-z0-9]+//; s/[[:space:]]+$//'
         )"
         if [[ "$cleaned" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
           printf '%s\n' "$cleaned"
